@@ -1,1 +1,11 @@
-.body { background-color: #000; text-color: FFF; }
+body {
+	background-color: #000;
+	color: #FFF;
+}
+
+#debugPrintout
+{
+	height: 100px;
+	overflow: auto;
+	border: 1px dotted #CCC;
+}

@@ -1,3 +1,13 @@
+String.prototype.format = function() {
+    var s = this;
+    var i = arguments.length;
+
+    while (i--) {
+        s = s.replace(new RegExp('\\{' + i + '\\}', 'gm'), arguments[i]);
+    }
+    return s;
+};
+
 (function() {
 	var videosync = this;
 	
@@ -9,20 +19,78 @@
 		ENDED: 4
 	}
 	
-	
+	function htmlEncode(text) {
+		return $("<div/>").text(text).html();
+	}
+
+	function debugPrint(text) {
+		var debugBox = $("#debugPrintout");
+		var isAtBottom = (debugBox.prop("scrollHeight") - debugBox.scrollTop() == debugBox.height());
+		debugBox.append(htmlEncode(text) + "<br>");
+		if (isAtBottom) {
+			debugBox.scrollTop(debugBox.prop("scrollHeight"));
+		}
+	}
+
 	function handleError(error) {
 	
 	}
 	
-	function handleMessage(message) {
-		
+	function handleMessage(messageStr) {
+		debugPrint("Got message: " + messageStr);
+		message = JSON.parse(messageStr);
+
+		if (message.command) {
+			if (message.command == "changeVideo") {
+				controller.changeVideo(message.video);
+			} else if (message.command == "videoState" && !controller.hasControl) {
+				if (message.videoState == videoStates.PLAYING) {
+					controller.play();
+				} else if (message.videoState == videoStates.PAUSED) {
+					controller.pause();
+				}
+			} else if (message.command == "reportPlaybackPosition" && !controller.hasControl) {
+				controller.syncWithTime(message.position);
+			}
+		}
 	}
+
+	var controller = {
+		hasControl: false,
+		videoService: null,
+
+		setHasControl: function(value) {
+			controller.hasControl = value;
+		},
+
+		changeVideo: function(url) {
+			// TODO: Determine video and load appropriate player.
+			controller.videoService = "youtube";
+			youtube.loadPlayer();
+		},
+
+		play: function() {
+			debugPrint("controller.play()");
+			youtube.play();
+		},
+
+		pause: function() {
+			debugPrint("controller.pause()");
+			youtube.pause();
+		},
+
+		syncWithTime: function(seconds) {
+			youtube.syncWithTime(seconds);
+		}
+	};
 	
 	var youtube = {
-		APIReady = false,
-		player = null,
-		playerReady = false,
-		defaultQuality = null,
+		APIReady: false,
+		player: null,
+		playerReady: false,
+		defaultQuality: null,
+		haveControl: false,
+		progressReporter: null,
 		
 		onPlayerReady: function(event) {
 			youtube.playerReady = true;
@@ -33,8 +101,9 @@
 		},
 		
 		onPlayerStateChange: function(event) {
-			if(!state.haveControl || state.videoService != "youtube") {
-				return
+			if(!controller.hasControl || controller.videoService != "youtube") {
+				debugPrint("Don't have control!");
+				return;
 			}
 			/*
 				YT.PlayerState.UNSTARTED
@@ -44,20 +113,22 @@
 				YT.PlayerState.BUFFERING
 				YT.PlayerState.CUED
 			*/
-			if(event.data == YT.PlayerState.PLAYING) {
-				socket.send({videoState: videoStates.PLAYING});
-			} else if(event.data == YT.PlayerState.PAUSED) {
-				socket.send({videoState: videoStates.PAUSED});
-			} else if(event.data == YT.PlayerState.BUFFERING) {
-				
-			} else if(event.data == YT.PlayerState.ENDED) {
-				socket.send({videoState: videoStates.ENDED});
+			if (event.data == YT.PlayerState.PLAYING) {
+				// TODO: Report time here as well.
+				socket.send({command: "videoState", videoState: videoStates.PLAYING});
+			} else if (event.data == YT.PlayerState.PAUSED) {
+				// TODO: Report time here as well.
+				socket.send({command: "videoState", videoState: videoStates.PAUSED});
+			} else if (event.data == YT.PlayerState.BUFFERING) {
+				socket.send({command: "reportPlaybackPosition", position: youtube.getCurrentTime()});
+			} else if (event.data == YT.PlayerState.ENDED) {
+				socket.send({command: "videoState", videoState: videoStates.ENDED});
 			}
 		},
 		
 		onPlayerError: function(event) {
 			
-		}
+		},
 		
 		loadPlayer: function() {
 			$('<div/>', { id: 'player' }).appendTo('#playerContainer');
@@ -73,6 +144,13 @@
 					'onError': youtube.onPlayerError
 				}
 			});
+
+			clearInterval(youtube.progressReporter);
+			youtube.progressReproter = setInterval(function() {
+				if (controller.hasControl) {
+					socket.send({command: "reportPlaybackPosition", position: youtube.getCurrentTime()});
+				}
+			}, 500);
 		},
 		
 		loadVideo: function(videoID) {
@@ -83,29 +161,37 @@
 		},
 		
 		play: function() {
-			if(player)
-				player.playVideo()
+			if(youtube.player)
+				youtube.player.playVideo()
 		},
 		
 		pause: function() {
-			if(player)
-				player.pauseVideo();
+			if(youtube.player)
+				youtube.player.pauseVideo();
 		},
 		
 		seek: function(seconds) {
-			if(player)
-				player.seekTo(seconds, true);
+			if(youtube.player)
+				youtube.player.seekTo(seconds, true);
+		},
+
+		syncWithTime: function(seconds) {
+			var localTime = youtube.getCurrentTime();
+			if (Math.abs(localTime - seconds) > 2.0) {
+				debugPrint("Seeking to " + seconds);
+				youtube.seek(seconds);
+			}
 		},
 		
 		getCurrentTime: function() {
-			if(player)
-				return player.getCurrentTime();
+			if(youtube.player)
+				return youtube.player.getCurrentTime();
 			return 0;
 		},
 		
 		getTotalTime: function() {
-			if(player)
-				return player.getDuration();
+			if(youtube.player)
+				return youtube.player.getDuration();
 			return 0;
 		}
 	}
@@ -136,42 +222,46 @@
 		connected: false,
 		
 		connect: function() {
-			if(websock != null && socket.sock == null) { // If websocket is supported and socket not already open
-				var sock = null,
-					websockuri;
+			if (websock != null && socket.sock == null) { // If websocket is supported and socket not already open
+				var websockuri = "ws://" + window.location.hostname + ":9000";
+				var newSocket = new websock(websockuri);
 		
-				websockuri = "ws://" + window.location.hostname + ":9000";
-		
-				sock = new websock(websockuri);
-		
-				if(sock) {
-					sock.onopen = function() {
-						socket.sock = sock;
+				if (newSocket) {
+					newSocket.onopen = function() {
+						socket.sock = newSocket;
 						socket.connected = true;
+						debugPrint("Socket connected");
 					}
 					
-					sock.onerror = function(event) {
+					newSocket.onerror = function(event) {
 						// Error -- Something went wrong with the websocket
+						debugPrint("Socket error");
 					}
 			
-					sock.onclose = function(event) {
-						if(socket.sock == sock) {
+					newSocket.onclose = function(event) {
+						if (socket.sock == sock) {
 							socket.sock = null;
 							socket.connected = false;
+							debugPrint("Socket closed");
 						}
 						// event.wasClean, event.code, event.reason
 					}
 			
-					sock.onmessage = function(event) {
-						handleMessage(JSON.parse(event.data));
+					newSocket.onmessage = function(event) {
+						handleMessage(event.data);
 					}
 				}
 			}
 		},
 		
 		send: function(message) {
-			if(socket.connected) {
-				socket.sock.send(JSON.stringify(message));
+			if (socket.connected) {
+				var messageStr = JSON.stringify(message);
+				debugPrint("Sending: " + messageStr);
+
+				socket.sock.send(messageStr);
+			} else {
+				debugPrint("Error: Could not send message, not connected to server.");
 			}
 		}
 	}
@@ -179,8 +269,17 @@
 	$(document).ready(function() {
 		socket.connect();
 		
-		$("takeControl").click(function() {
-			socket.send({command: "takeControl"});
+		// Hook up UI.
+		$("#takeControl").click(function() {
+			controller.setHasControl(!controller.hasControl);
+			$("#takeControl").text(controller.hasControl ? "Relinquish Direct Control" : "Assume Direct Control");
+		});
+		$("#loadVideo").click(function() {
+			if (!controller.hasControl) {
+				debugPrint("Don't have control!");
+			} else {
+				socket.send({command: "changeVideo", video: "http://example.com"});
+			}
 		});
 	});
 })();
