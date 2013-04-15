@@ -131,7 +131,7 @@ if __name__ == "__main__":
 	listenWS(factory)
 	
 	if args.webserver:
-		webdir = File(".")
+		webdir = File("../site")
 		web = Site(webdir)
 		reactor.listenTCP(8080, web)
 	

@@ -101,6 +101,7 @@ String.prototype.format = function() {
 		defaultQuality: null,
 		haveControl: false,
 		progressReporter: null,
+		lastPlaybackPosition: NaN,
 		
 		onPlayerReady: function(event) {
 			youtube.playerReady = true;
@@ -157,8 +158,10 @@ String.prototype.format = function() {
 
 			clearInterval(youtube.progressReporter);
 			youtube.progressReproter = setInterval(function() {
-				if (controller.hasControl) {
-					socket.send({command: "reportPlaybackPosition", position: youtube.getCurrentTime()});
+				currentPosition = youtube.getCurrentTime();
+				if (controller.hasControl && controller.lastPlaybackPosition != currentPosition) {
+					controller.lastPlaybackPosition = currentPosition;
+					socket.send({command: "reportPlaybackPosition", position: currentPosition});
 				}
 			}, 500);
 		},
