@@ -36,7 +36,7 @@ class BroadcastServerProtocol(WebSocketServerProtocol):
 	def onMessage(self, msg, binary):
 		if not binary:
 			#self.factory.broadcast("'%s' from %s" % (msg, self.peerstr))
-			self.factory.broadcast("%s'" % msg)
+			self.factory.broadcast("%s" % msg)
 			print "Received message: '%s'" % msg
 
 	def connectionLost(self, reason):

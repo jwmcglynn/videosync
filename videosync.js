@@ -41,7 +41,12 @@ String.prototype.format = function() {
 		message = JSON.parse(messageStr);
 
 		if (message.command) {
-			if (message.command == "changeVideo") {
+			if (message.command == "initialState") {
+				// TODO - Handle queuing of instructions
+				// message contains video, videoState, position
+			} else if (message.command == "updateControl") {
+				controller.setHasControl(message.control);
+			} else if (message.command == "changeVideo") {
 				controller.changeVideo(message.video);
 			} else if (message.command == "videoState" && !controller.hasControl) {
 				if (message.videoState == videoStates.PLAYING) {
@@ -61,6 +66,11 @@ String.prototype.format = function() {
 
 		setHasControl: function(value) {
 			controller.hasControl = value;
+			if (controller.hasControl) {
+				$("#takeControl").attr('disabled', 'disabled');
+			} else {
+				$("#takeControl").attr('disabled', '');
+			}
 		},
 
 		changeVideo: function(url) {
@@ -239,7 +249,7 @@ String.prototype.format = function() {
 					}
 			
 					newSocket.onclose = function(event) {
-						if (socket.sock == sock) {
+						if (socket.sock == newSocket) {
 							socket.sock = null;
 							socket.connected = false;
 							debugPrint("Socket closed");
@@ -271,8 +281,7 @@ String.prototype.format = function() {
 		
 		// Hook up UI.
 		$("#takeControl").click(function() {
-			controller.setHasControl(!controller.hasControl);
-			$("#takeControl").text(controller.hasControl ? "Relinquish Direct Control" : "Assume Direct Control");
+			socket.send({command: "takeControl"});
 		});
 		$("#loadVideo").click(function() {
 			if (!controller.hasControl) {
