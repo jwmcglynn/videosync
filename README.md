@@ -4,9 +4,9 @@ VideoSync
 Setup
 -----
 
-`pip install autobahn`
-`pip install passlib`
-`pip install nose`
+`pip install autobahn`    
+`pip install passlib`    
+`pip install nose`    
 
 **WARNING: This will delete the previous database.**    
 `python database_create.py -y`
