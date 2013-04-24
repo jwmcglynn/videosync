@@ -12,8 +12,8 @@ class User:
 		c = database.cursor()
 
 		# Load room.
-		c.execute(
-			'''SELECT name
+		c.execute('''
+			SELECT name
 			FROM users
 			WHERE user_id = ?
 			LIMIT 1'''
@@ -59,8 +59,8 @@ class User:
 		c = database.cursor()
 
 		# Load room.
-		c.execute(
-			'''SELECT password
+		c.execute('''
+			SELECT password
 			FROM users
 			WHERE user_id = ?
 			LIMIT 1'''

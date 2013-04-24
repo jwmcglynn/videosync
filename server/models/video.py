@@ -50,7 +50,6 @@ class Video:
 	@staticmethod
 	def create(room_id, rank, service, url, title, duration, start_time):
 		c = database.cursor()
-
 		c.execute('''
 			INSERT INTO room_queue (
 				room_id
@@ -82,12 +81,11 @@ class Video:
 		self.__rank = rank
 
 		c = database.cursor()
-
 		c.execute('''
 			UPDATE room_queue
 			SET rank = ?
 			WHERE item_id = ?'''
-			, (rank, self.item_id,))
+			, (rank, self.item_id))
 
 		database.commit()
 
