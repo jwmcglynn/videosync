@@ -18,7 +18,8 @@ class Video:
 
 		# Load video.
 		c.execute(
-			'''SELECT room_id
+			'''
+			SELECT room_id
 				, rank
 				, service
 				, url
@@ -74,6 +75,19 @@ class Video:
 			DELETE FROM room_queue
 			WHERE item_id = ?'''
 			, (self.item_id,))
+
+		database.commit()
+
+	def update_rank(self, rank):
+		self.__rank = rank
+
+		c = database.cursor()
+
+		c.execute('''
+			UPDATE room_queue
+			SET rank = ?
+			WHERE item_id = ?'''
+			, (rank, self.item_id,))
 
 		database.commit()
 

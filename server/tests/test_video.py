@@ -26,13 +26,13 @@ class TestVideo:
 		video_id = Video.create(room_id, rank, service, url, title, duration, start_time)
 
 		recreated_video = Video(video_id)
-		assert_equals(room_id, recreated_video.room_id) 
-		assert_equals(rank, recreated_video.rank) 
-		assert_equals(service, recreated_video.service) 
-		assert_equals(url, recreated_video.url) 
-		assert_equals(title, recreated_video.title) 
-		assert_equals(duration, recreated_video.duration) 
-		assert_equals(start_time, recreated_video.start_time) 
+		assert_equals(room_id, recreated_video.room_id)
+		assert_equals(rank, recreated_video.rank)
+		assert_equals(service, recreated_video.service)
+		assert_equals(url, recreated_video.url)
+		assert_equals(title, recreated_video.title)
+		assert_equals(duration, recreated_video.duration)
+		assert_equals(start_time, recreated_video.start_time)
 
 		return recreated_video
 
@@ -69,5 +69,20 @@ class TestVideo:
 		video.remove()
 		removed_video = Video(video.item_id) # Object is a zombie, but the video is gone from the DB.
 
+	def test_update_rank(self):
+		video = self.create_internal(
+			0
+			, 0.0
+			, "youtube"
+			, "http://www.youtube.com/watch?v=Qqd9S06lvH0"
+			, "screaming creepers"
+			, 28
+			, 0)
 
-	# TODO: Video reordering.
+		assert_equals(0.0, video.rank)
+		video.update_rank(1.0)
+		assert_equals(1.0, video.rank)
+
+		video.update_rank(2.0)
+		new_video = Video(video.item_id)
+		assert_equals(2.0, new_video.rank)

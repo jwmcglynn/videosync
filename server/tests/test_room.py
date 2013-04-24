@@ -63,5 +63,26 @@ class TestRoom:
 		video2.remove()
 		assert_equal(default_room.video_queue(), [])
 
+	def test_reordering(self):
+		default_room = Room(0)
+		video1 = default_room.add_video(
+			"youtube"
+			, "http://www.youtube.com/watch?v=Qqd9S06lvH0"
+			, "screaming creepers"
+			, 28
+			, 0)
+		video2 = default_room.add_video(
+			"youtube"
+			, "http://www.youtube.com/watch?v=Wl8AK5Ht65Y"
+			, "Oh Bother..."
+			, 5
+			, 0)
 
-	# TODO: Video reordering.
+		assert_equal(default_room.video_queue(), [video1, video2])
+		video1.update_rank(video2.rank + 1.0)
+		assert_equal(default_room.video_queue(), [video2, video1])
+		video2.update_rank(0.0)
+		assert_equal(default_room.video_queue(), [video2, video1])
+		video1.update_rank(-1.0)
+		assert_equal(default_room.video_queue(), [video1, video2])
+

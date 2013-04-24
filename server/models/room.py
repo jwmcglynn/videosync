@@ -78,8 +78,8 @@ class Room:
 
 	def video_queue(self):
 		c = database.cursor()
-		c.execute(
-			'''SELECT item_id
+		c.execute('''
+			SELECT item_id
 			FROM room_queue
 			WHERE room_id = ?
 			ORDER BY rank ASC'''
@@ -90,9 +90,8 @@ class Room:
 
 	def add_video(self, service, url, title, duration, start_time):
 		c = database.cursor()
-
-		c.execute(
-			'''SELECT rank
+		c.execute('''
+			SELECT rank
 			FROM room_queue
 			WHERE room_id = ?
 			ORDER BY rank DESC
@@ -116,8 +115,3 @@ class Room:
 
 		return Video(video_id)
 
-	def move_video(self, video, position):
-		assert self.room_id == video.room_id
-
-		c = database.cursor()
-		# TODO
