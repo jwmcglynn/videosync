@@ -1,28 +1,23 @@
 from models.room import Room
 from models.video import Video
-#import video_resolver
+import video_resolver
 
 class RoomController:
-	__room = None
-	__active_users = []
-	__queue = []
-	__moderator = None
-	__current_video_index = 0
-	__current_video_time = 0.0
-	__video_playing = False
-
 	def __init__(self, room_id):
 		self.__room = Room(room_id)
+		self.__active_users = []
 		self.__queue = self.__room.video_queue()
+		self.__moderator = None
+		self.__current_video_index = 0
+		self.__current_video_time = 0.0
+		self.__video_playing = False
 
 	def process_message(self, user_session, message):
 		try:
 			if message["command"] == "add_video":
-				# TODO: Lookup video.
-				#video_resolver.resolve(
-				#	message["url"]
-				#	, self.on_video_resolved)
-				self.on_video_resolved(None)
+				video_resolver.resolve(
+					message["url"]
+					, self.on_video_resolved)
 
 		except KeyError:
 			# TODO: Log error
@@ -40,11 +35,10 @@ class RoomController:
 
 	#### Users.
 	def user_connect(self, user_session):
-		self.__active_users.append(user_session)
-		self.broadcast_all_but_one(
-			user_session
-			, {"command": "user_connect"
+		self.broadcast(
+			{"command": "user_connect"
 				, "username": user_session.username})
+		self.__active_users.append(user_session)
 
 		# If this is the only user make them moderator.
 		if self.__moderator is None:
@@ -112,13 +106,12 @@ class RoomController:
 
 	#### Video resolution.
 	def on_video_resolved(self, video_info):
-		# TODO: Use video_info.
 		video = self.__room.add_video(
-			"youtube"
-			, "http://www.youtube.com/watch?v=Qqd9S06lvH0"
-			, "screaming creepers"
-			, 28
-			, 0)
+			video_info.service
+			, video_info.url
+			, video_info.title
+			, video_info.duration
+			, video_info.start_time)
 		self.__queue.append(video)
 
 		self.broadcast(

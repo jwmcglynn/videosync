@@ -5,9 +5,6 @@ class NoSuchUserException(Exception):
 	pass
 
 class User:
-	__user_id = 0
-	__name = None
-
 	def __init__(self, user_id):
 		c = database.cursor()
 

@@ -6,11 +6,6 @@ class NoSuchRoomException(Exception):
 	pass
 
 class Room:
-	__room_id = 0
-	__name = None
-	__owner = None
-	__admins = []
-
 	def __init__(self, room_id):
 		c = database.cursor()
 
@@ -30,6 +25,7 @@ class Room:
 		self.__room_id = room_id
 		self.__name = result_room[0]
 		self.__owner = result_room[1]
+		self.__admins = []
 
 		# Load admins.
 		c.execute(

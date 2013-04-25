@@ -14,14 +14,12 @@ class AsyncTimeout(Exception):
 	pass
 
 class MockUserSession:
-	username = None
-	messages = []
-	is_moderator = False
-	waiting_event = threading.Event()
-	waiting_count = 0
-
 	def __init__(self, username):
 		self.username = username
+		self.messages = []
+		self.is_moderator = False
+		self.waiting_event = threading.Event()
+		self.waiting_count = 0
 
 	def __eq__(self, other):
 		return self.username == other.username
@@ -30,6 +28,7 @@ class MockUserSession:
 		self.is_moderator = is_moderator
 
 	def send(self, message):
+		print "%s got message: %s" % (self.username, message)
 		self.messages.append(message)
 
 		if self.waiting_count > 0 and self.waiting_count == len(self.messages):
@@ -59,14 +58,15 @@ class TestRoomController:
 		room_id = Room.create("Test Room", system)
 		self.room_controller = RoomController(room_id)
 
-	def test_single_user(self):
+	def test_basic(self):
 		user1 = MockUserSession("TestUser1")
-		self.room_controller.user_connect(user1)
+		user2 = MockUserSession("TestUser2")
 
+		self.room_controller.user_connect(user1)
 		assert_equal(
-			[{"command": "initial_users", "users": ["TestUser1"]},
-				 {"command": "set_moderator", "username": "TestUser1"},
-				 {"command": "initial_queue", "queue": []}]
+			[{"command": "initial_users", "users": ["TestUser1"]}
+				 , {"command": "set_moderator", "username": "TestUser1"}
+				 , {"command": "initial_queue", "queue": []}]
 			, user1.messages)
 		user1.messages = []
 
@@ -84,3 +84,25 @@ class TestRoomController:
 		            , "title": u"screaming creepers"
 		            , "url": u"http://www.youtube.com/watch?v=Qqd9S06lvH0"}}]
 			, user1.messages)
+		user1.messages = []
+
+		# Connect additional user.
+		self.room_controller.user_connect(user2)
+		assert_equal(
+			[{"command": "user_connect", "username": "TestUser2"}]
+			, user1.messages)
+		assert_equal(
+			[{"command": "initial_users", "users": ["TestUser1", "TestUser2"]}
+				, {"command": "set_moderator", "username": "TestUser1"}
+				, {"command": "initial_queue", "queue": [
+					{"service": u"youtube", "title": u"screaming creepers",
+						"url": u"http://www.youtube.com/watch?v=Qqd9S06lvH0",
+						"start_time": 0, "duration": 28, "item_id": 1}]}
+				, {"command": "change_video", "video":
+					{"service": u"youtube", "title": u"screaming creepers",
+						"url": u"http://www.youtube.com/watch?v=Qqd9S06lvH0",
+						"start_time": 0, "duration": 28, "item_id": 1}}]
+			, user2.messages)
+		user1.messages = []
+		user2.messages = []
+

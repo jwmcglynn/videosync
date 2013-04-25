@@ -4,15 +4,6 @@ class NoSuchVideoException(Exception):
 	pass
 
 class Video:
-	__item_id = 0
-	__room_id = 0
-	__rank = None
-	__service = None
-	__url = None
-	__title = None
-	__duration = None
-	__start_time = None
-
 	def __init__(self, item_id):
 		c = database.cursor()
 
