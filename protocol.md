@@ -37,7 +37,7 @@ Guest usernames have an asterisk decoration at the beginning and end:
 
 ### Videos
 
-Videos are represented by a JSON object with the following entries:
+Videos, which will be represented with *`video_type`* later in the document, are conveyed as a JSON object with the following entries:
 
 | Name    | Type   | Details |
 |--------:|:------:|:--------|
@@ -63,8 +63,42 @@ Example:
 Client-to-server messages
 -------------------------
 
+### `join_room`
+
+### `login`
+
+### `guest_username`
+
+### `video_state`
+
+### `add_video`
+
+### `move_video`
+
+### `assume_direct_control`
+
+### `remove_control`
+
 Server-to-client messages
 -------------------------
+
+### `user_connect`
+
+### `user_disconnect`
+
+### `set_moderator`
+
+### `initial_users`
+
+### `initial_queue`
+
+### `change_video`
+
+### `video_state`
+
+### `add_queue_video`
+
+### `move_queue_video`
 
 Client connection handshake
 ---------------------------
