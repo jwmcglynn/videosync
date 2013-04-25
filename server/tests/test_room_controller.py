@@ -78,11 +78,11 @@ class TestRoomController:
 		assert_equal(
 			[{"command": "add_queue_video"
 				, "video": {"duration": 28
-		            , "item_id": 1
-		            , "service": u"youtube"
-		            , "start_time": 0
-		            , "title": u"screaming creepers"
-		            , "url": u"http://www.youtube.com/watch?v=Qqd9S06lvH0"}}]
+					, "item_id": 1
+					, "service": u"youtube"
+					, "start_time": 0
+					, "title": u"screaming creepers"
+					, "url": u"http://www.youtube.com/watch?v=Qqd9S06lvH0"}}]
 			, user1.messages)
 		user1.messages = []
 
