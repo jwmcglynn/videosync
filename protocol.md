@@ -39,14 +39,14 @@ Guest usernames have an asterisk decoration at the beginning and end:
 
 Videos, which will be represented with *`video_type`* later in the document, are conveyed as a JSON object with the following properties:
 
-| Name    | Type   | Details |
-|--------:|:------:|:--------|
-| item_id | int    | Unique id used to reference videos when performing operations with them. |
-| service | string | Service that is hosting the video.  Either `youtube` or `vimeo`. |
-| url     | string | User-facing URL for the video.  Ex: http://www.youtube.com/watch?v=Wl8AK5Ht65Y |
-| title   | string | Title of the video. |
-| duration | real | Duration of the video in seconds. |
-| start_time | real | Start time offset, in seconds. |
+| Name       | Type     | Details |
+|-----------:|:--------:|:--------|
+| item_id    | `int`    | Unique id used to reference videos when performing operations with them. |
+| service    | `string` | Service that is hosting the video.  Either `youtube` or `vimeo`. |
+| url        | `string` | User-facing URL for the video.  Ex: http://www.youtube.com/watch?v=Wl8AK5Ht65Y |
+| title      | `string` | Title of the video. |
+| duration   | `real`   | Duration of the video in seconds. |
+| start_time | `real`   | Start time offset, in seconds. |
 
 Example:
 
@@ -60,6 +60,9 @@ Example:
     , "duration": 28}}
 ```
 
+Protocol states
+---------------
+
 Client-to-server messages
 -------------------------
 
@@ -71,10 +74,10 @@ Upon success, advances to the **connected** state.
 
 Possible responses: `command_error`, `logged_in`.
 
-| Name     | Type   | Details |
-|---------:|:------:|:--------|
-| username | string | Unique username string. |
-| password | string | Unencrypted password. (FIXME) |
+| Name     | Type     | Details |
+|---------:|:--------:|:--------|
+| username | `string` | Unique username string. |
+| password | `string` | Unencrypted password. (FIXME) |
 
 #### `login_guest`
 
@@ -82,7 +85,7 @@ Upon receipt, advances to the **connected** state.
 
 Possible responses: `logged_in`.
 
-*No additional fields.*
+*No additional properties.*
 
 ### Connected state
 
@@ -94,7 +97,7 @@ Possible responses: `command_error`, `room_joined`.
 
 | Name    | Type   | Details |
 |--------:|:------:|:--------|
-| room_id | int    | Unique id used to reference videos when performing operations with them. |
+| room_id | `int`  | Unique id used to reference videos when performing operations with them. |
 
 ### Room state
 
@@ -102,28 +105,38 @@ Possible responses: `command_error`, `room_joined`.
 
 Changes the display name of a guest.  Can only be issued once.
 
-| Name     | Type   | Details |
-|---------:|:------:|:--------|
-| username | string | New username, without the asterisk decoration. |
+| Name     | Type     | Details |
+|---------:|:--------:|:--------|
+| username | `string` | New username, without the asterisk decoration. |
 
 #### `add_video`
 
 Add a video to the queue.
 
-| Name | Type   | Details |
-|-----:|:------:|:--------|
-| url  | string | URL identifying the video. |
+| Name | Type     | Details |
+|-----:|:--------:|:--------|
+| url  | `string` | URL identifying the video. |
 
 ### Room moderator state
 
-#### `video_state`
+#### `give_moderator`
+
+Transfer moderator to another user.
+
+Possible responses: `command_error`, `set_moderator`.
+
+| Name     | Type     | Details |
+|---------:|:--------:|:--------|
+| username | `string` | Username of the new moderator. |
+
+#### `update_video_state`
 
 As moderator report the current video position and playback state.  Moderators should send these messages whenever video *position* or *state* changes.
 
-| Name     | Type   | Details |
-|---------:|:------:|:--------|
-| position | real   | Current video position in seconds. |
-| state    | string | Either **playing** or **paused**. |
+| Name     | Type     | Details |
+|---------:|:--------:|:--------|
+| position | `real`   | Current video position in seconds. |
+| state    | `string` | Either **playing** or **paused**. |
 
 #### `select_video`
 
@@ -131,54 +144,124 @@ Select a video in the queue to play as the current video.
 
 Possible responses: `command_error`, `change_video`.
 
-| Name    | Type | Details |
-|--------:|:----:|:--------|
-| item_id | int  | Video unique id. |
+| Name    | Type  | Details |
+|--------:|:-----:|:--------|
+| item_id | `int` | Video unique id. |
 
 #### `move_video`
 
 Move a video's position in the queue.
 
-| Name    | Type | Details |
-|--------:|:----:|:--------|
-| item_id | int  | Video unique id. |
-| index   | int  | new location of the video, as a zero-based index in the queue list. |
+| Name    | Type  | Details |
+|--------:|:-----:|:--------|
+| item_id | `int` | Video unique id. |
+| index   | `int` | new location of the video, as a zero-based index in the queue list. |
 
 Server-to-client messages
 -------------------------
 
 #### `logged_in`
 
+Confirmation that the session has transitioned to the **connected** state.
+
+| Name     | Type            | Details |
+|---------:|:---------------:|:--------|
+| username | `username_type` | Current session's username. |
+
 #### `room_joined`
 
-#### `guest_usernamed_changed`
+Confirmation that the session has transitioned to the **room** state.
 
-#### `user_connect`
-
-#### `user_disconnect`
-
-#### `set_moderator`
-
-#### `assume_direct_control`
-
-#### `remove_control`
+*No additional properties.*
 
 #### `initial_users`
 
+Initial username list for the room.  Sent as soon as the session transitions to the **room** state.
+
+| Name   | Type                   | Details |
+|-------:|:----------------------:|:--------|
+| users  | array of `username_type` | List of active users for the room. |
+
 #### `initial_queue`
+
+Initial video queue for the room.  Sent as soon as the session transitions to the **room** state.
+
+| Name   | Type                  | Details |
+|-------:|:---------------------:|:--------|
+| queue  | array of `video_type` | Video queue for the room. |
+
+#### `guest_usernamed_changed`
+
+Sent when a guest user changes their temporary name.
+
+| Name         | Type            | Details |
+|-------------:|:---------------:|:--------|
+| old_username | `username_type` | User's previous name. |
+| username     | `username_type` | User's new name. |
+
+#### `user_connect`
+
+Sent when a user joins the current room.
+
+| Name         | Type            | Details |
+|-------------:|:---------------:|:--------|
+| username     | `username_type` | User's new name. |
+
+#### `user_disconnect`
+
+Sent when a user disconnects from the current room.
+
+| Name         | Type            | Details |
+|-------------:|:---------------:|:--------|
+| username     | `username_type` | User's new name. |
+
+#### `set_moderator`
+
+Sent when the moderator changes.
+
+| Name         | Type            | Details |
+|-------------:|:---------------:|:--------|
+| username     | `username_type` | User's new name. |
 
 #### `change_video`
 
+Sent when the current video changes to inform the client to load a new video in the player.
+
+| Name   | Type         | Details |
+|-------:|:------------:|:--------|
+| video  | `video_type` | Video information. |
+
 #### `video_state`
+
+Reports a change to the current video, either when the playback position or state changes.
+
+| Name     | Type     | Details |
+|---------:|:--------:|:--------|
+| position | `real`   | Current video position in seconds. |
+| state    | `string` | Either **playing** or **paused**. |
 
 #### `add_queue_video`
 
+Reports a new video added to the end of the queue.
+
+| Name   | Type         | Details |
+|-------:|:------------:|:--------|
+| queue  | `video_type` | Video information. |
+
 ### `move_queue_video`
+
+Report a video move to a new position in the queue.
+
+| Name    | Type  | Details |
+|--------:|:-----:|:--------|
+| item_id | `int` | Video unique id. |
+| index   | `int` | new location of the video, as a zero-based index in the queue list. |
 
 ### `command_error`
 
+Response from the server when the previous command errors out.
 
-
-Client connection handshake
----------------------------
-
+| Name    | Type     | Details |
+|--------:|:--------:|:--------|
+| context | `string` | Command that resulted in this error. |
+| reason  | `string` | User-readable error message. |
