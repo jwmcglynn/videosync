@@ -63,6 +63,8 @@ Example:
 Protocol states
 ---------------
 
+![Protocol states diagram](https://github.com/jwmcglynn/videosync/blob/master/protocol_states.png)
+
 Client-to-server messages
 -------------------------
 
