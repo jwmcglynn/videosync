@@ -4,7 +4,7 @@ VideoSync Protocol
 Core Protocol
 -------------
 
-The protocol is implemented by passing JSON messages between the client and server.  Every message has at least a `command` entry followed by command-specific entries.
+The protocol is implemented by passing JSON messages between the client and server.  Each message is a JSON object with, a `command` property followed by any number of additional properties relevant to that command.
 
 For example, for the `set_moderator` command `username` is provided as metadata.
 
@@ -15,7 +15,7 @@ For example, for the `set_moderator` command `username` is provided as metadata.
 Shared Data Types
 -----------------
 
-When users or videos are referenced by the protocol they are always represented in the same format.
+Shared data types are, such as videos or users, are always represented in the same format and will be abbreviated later in the document.
 
 ### Users
 
@@ -37,7 +37,7 @@ Guest usernames have an asterisk decoration at the beginning and end:
 
 ### Videos
 
-Videos, which will be represented with *`video_type`* later in the document, are conveyed as a JSON object with the following entries:
+Videos, which will be represented with *`video_type`* later in the document, are conveyed as a JSON object with the following properties:
 
 | Name    | Type   | Details |
 |--------:|:------:|:--------|
@@ -63,42 +63,121 @@ Example:
 Client-to-server messages
 -------------------------
 
-### `join_room`
+### Initial state
 
-### `login`
+#### `login`
 
-### `guest_username`
+Upon success, advances to the **connected** state.
 
-### `video_state`
+Possible responses: `command_error`, `logged_in`.
 
-### `add_video`
+| Name     | Type   | Details |
+|---------:|:------:|:--------|
+| username | string | Unique username string. |
+| password | string | Unencrypted password. (FIXME) |
 
-### `move_video`
+#### `login_guest`
 
-### `assume_direct_control`
+Upon receipt, advances to the **connected** state.
 
-### `remove_control`
+Possible responses: `logged_in`.
+
+*No additional fields.*
+
+### Connected state
+
+#### `join_room`
+
+Upon success, advances to the **room** state.
+
+Possible responses: `command_error`, `room_joined`.
+
+| Name    | Type   | Details |
+|--------:|:------:|:--------|
+| room_id | int    | Unique id used to reference videos when performing operations with them. |
+
+### Room state
+
+#### `guest_username`
+
+Changes the display name of a guest.  Can only be issued once.
+
+| Name     | Type   | Details |
+|---------:|:------:|:--------|
+| username | string | New username, without the asterisk decoration. |
+
+#### `add_video`
+
+Add a video to the queue.
+
+| Name | Type   | Details |
+|-----:|:------:|:--------|
+| url  | string | URL identifying the video. |
+
+### Room moderator state
+
+#### `video_state`
+
+As moderator report the current video position and playback state.  Moderators should send these messages whenever video *position* or *state* changes.
+
+| Name     | Type   | Details |
+|---------:|:------:|:--------|
+| position | real   | Current video position in seconds. |
+| state    | string | Either **playing** or **paused**. |
+
+#### `select_video`
+
+Select a video in the queue to play as the current video.
+
+Possible responses: `command_error`, `change_video`.
+
+| Name    | Type | Details |
+|--------:|:----:|:--------|
+| item_id | int  | Video unique id. |
+
+#### `move_video`
+
+Move a video's position in the queue.
+
+| Name    | Type | Details |
+|--------:|:----:|:--------|
+| item_id | int  | Video unique id. |
+| index   | int  | new location of the video, as a zero-based index in the queue list. |
 
 Server-to-client messages
 -------------------------
 
-### `user_connect`
+#### `logged_in`
 
-### `user_disconnect`
+#### `room_joined`
 
-### `set_moderator`
+#### `guest_usernamed_changed`
 
-### `initial_users`
+#### `user_connect`
 
-### `initial_queue`
+#### `user_disconnect`
 
-### `change_video`
+#### `set_moderator`
 
-### `video_state`
+#### `assume_direct_control`
 
-### `add_queue_video`
+#### `remove_control`
+
+#### `initial_users`
+
+#### `initial_queue`
+
+#### `change_video`
+
+#### `video_state`
+
+#### `add_queue_video`
 
 ### `move_queue_video`
+
+### `command_error`
+
+
 
 Client connection handshake
 ---------------------------
