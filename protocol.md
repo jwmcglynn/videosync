@@ -200,7 +200,7 @@ Initial video queue for the room.  Sent as soon as the session transitions to th
 |-------:|:---------------------:|:--------|
 | queue  | array of `video_type` | Video queue for the room. |
 
-#### `guest_usernamed_changed`
+#### `guest_username_changed`
 
 Sent when a guest user changes their temporary name.
 
