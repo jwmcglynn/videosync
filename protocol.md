@@ -159,6 +159,14 @@ Move a video's position in the queue.
 | item_id | `int` | Video unique id. |
 | index   | `int` | new location of the video, as a zero-based index in the queue list. |
 
+#### `remove_video`
+
+Remove a video from the queue.
+
+| Name    | Type  | Details |
+|--------:|:-----:|:--------|
+| item_id | `int` | Video unique id. |
+
 Server-to-client messages
 -------------------------
 
