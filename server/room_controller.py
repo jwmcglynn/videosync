@@ -1,6 +1,17 @@
-from models.room import Room
-from models.video import Video
+import models.room as room_model
 import video_resolver
+import itertools
+
+active_rooms = dict()
+NoSuchRoomException = room_model.NoSuchRoomException
+
+def get_instance(room_id):
+	if room_id in active_rooms:
+		return active_rooms[room_id]
+	else:
+		room = RoomController(room_id)
+		active_rooms[room_id] = room
+		return room
 
 class CommandError(Exception):
 	def __init__(self, message):
@@ -8,8 +19,9 @@ class CommandError(Exception):
 
 class RoomController:
 	def __init__(self, room_id):
-		self.__room = Room(room_id)
+		self.__room = room_model.Room(room_id)
 		self.__active_users = []
+		self.__user_lookup = dict()
 		self.__queue = self.__room.video_queue()
 		self.__moderator = None
 		self.__current_video_index = 0
@@ -61,11 +73,15 @@ class RoomController:
 			raise CommandError("Username too long.  The maximum length is 30 characters.")
 		
 		# Check to see if there any duplicate usernames.
-		if any(message["username"] == user.raw_username for user in self.__active_users):
+		guest_username = "*%s*" % message["username"]
+		if message["username"] in self.__user_lookup or guest_username in self.__user_lookup:
 			raise CommandError("Username already in use.")
 
 		old_username = user_session.username
 		user_session.change_username(message["username"])
+
+		del self.__user_lookup[old_username]
+		self.__user_lookup[user_session.username] = user_session
 
 		self.broadcast(
 			{"command": "guest_username_changed"
@@ -118,17 +134,11 @@ class RoomController:
 		if len(self.__queue) == 1:
 			return
 
-		current_index = self.__queue.index(video)
-
 		def list_queue():
 			return map(lambda x: x.item_id, self.__queue)
 
-		print "Moving video from index %d to %d(%d)" % (current_index, message["index"], target_index)
-		print "Queue before: %s", list_queue()
 		self.__queue.remove(video)
-		print "Queue after remove: %s", list_queue()
 		self.__queue.insert(target_index, video)
-		print "Queue after re-add: %s", list_queue()
 
 		# Update rank.
 		if target_index == 0:
@@ -167,6 +177,16 @@ class RoomController:
 				session.send(message)
 
 	#### Users.
+	def next_guest_username(self):
+		def username_generator():
+			for i in itertools.count():
+				yield "unnamed %d" % i
+
+		for username in username_generator():
+			guest_username = "*%s*" % username
+			if guest_username not in self.__user_lookup:
+				return username
+
 	def user_connect(self, user_session):
 		user_session.send(
 			{"command": "room_joined"})
@@ -174,6 +194,7 @@ class RoomController:
 			{"command": "user_connect"
 				, "username": user_session.username})
 		self.__active_users.append(user_session)
+		self.__user_lookup[user_session.username] = user_session
 
 		# If this is the only user make them moderator.
 		if self.__moderator is None:
@@ -184,17 +205,18 @@ class RoomController:
 
 	def user_disconnect(self, user_session):
 		self.__active_users.remove(user_session)
+		del self.__user_lookup[user_session.username]
 
-		self.broadcast(
-			{"command": "user_disconnect"
-				, "username": user_session.username})
+		if len(self.__active_users) == 0:
+			del active_rooms[self.__room.room_id]
+		else:
+			self.broadcast(
+				{"command": "user_disconnect"
+					, "username": user_session.username})
 
-		if self.__moderator == user_session:
-			# Pick a new moderator.
-			if len(self.__active_users) != 0:
+			if self.__moderator == user_session:
+				# Pick the oldest connected user as the new moderator.
 				self.update_moderator(self.__active_users[0])
-			else:
-				self.__moderator = None
 
 	def update_moderator(self, user_session):
 		self.__moderator = user_session
@@ -260,4 +282,3 @@ class RoomController:
 		self.broadcast(
 			{"command": "add_queue_video"
 				, "video": self.serialize_video(video)})
-

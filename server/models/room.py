@@ -35,7 +35,7 @@ class Room:
 			, (room_id,))
 		result_admins = c.fetchall()
 		for admin in result_admins:
-			__admins.append(admin)
+			self.__admins.append(admin)
 
 	def __eq__(self, other):
 		return self.__room_id == other.__room_id
