@@ -51,13 +51,14 @@ Videos, which will be represented with *`video_type`* later in the document, are
 Example:
 
 ```json
-{"command": "add_queue_video", "video":
-	{"item_id": 1
-    , "service": "youtube"
-    , "url": "http://www.youtube.com/watch?v=Qqd9S06lvH0"
-    , "title": "screaming creepers"
-    , "start_time": 0
-    , "duration": 28}}
+{"command": "add_queue_video"
+	, "video":
+		{"item_id": 1
+			, "service": "youtube"
+			, "url": "http://www.youtube.com/watch?v=Qqd9S06lvH0"
+			, "title": "screaming creepers"
+			, "start_time": 0
+			, "duration": 28}}
 ```
 
 Protocol states
@@ -65,41 +66,25 @@ Protocol states
 
 ![Protocol states diagram](https://github.com/jwmcglynn/videosync/raw/master/protocol_states.png)
 
+Socket handshake
+----------------
+
+VideoSync is provided as a websocket server.  The service is available as a URL in the following format:
+
+	ws://<domain>:9000/room/<room_id>?login_token=<token>
+
+Unauthenticated users may still connect, but should omit the login_token query string:
+
+	ws://<domain>:9000/room/<room_id>
+	
+| Name        | Type     | Details |
+|------------:|:--------:|:--------|
+| domain      | `string` | The HTTP server's domain. |
+| room_id     | `string` | Base-32 encoded room ID (Crockford format). |
+| login_token | `string` | Session identifier for authenticated users. |
+
 Client-to-server messages
 -------------------------
-
-### Initial state
-
-#### `login`
-
-Upon success, advances to the **connected** state.
-
-Possible responses: `command_error`, `logged_in`.
-
-| Name     | Type     | Details |
-|---------:|:--------:|:--------|
-| username | `string` | Unique username string. |
-| password | `string` | Unencrypted password. (FIXME) |
-
-#### `login_guest`
-
-Upon receipt, advances to the **connected** state.
-
-Possible responses: `logged_in`.
-
-*No additional properties.*
-
-### Connected state
-
-#### `join_room`
-
-Upon success, advances to the **room** state.
-
-Possible responses: `command_error`, `room_joined`.
-
-| Name    | Type   | Details |
-|--------:|:------:|:--------|
-| room_id | `int`  | Unique id used to reference videos when performing operations with them. |
 
 ### Room state
 
@@ -170,17 +155,9 @@ Remove a video from the queue.
 Server-to-client messages
 -------------------------
 
-#### `logged_in`
-
-Confirmation that the session has transitioned to the **connected** state.
-
-| Name     | Type            | Details |
-|---------:|:---------------:|:--------|
-| username | `username_type` | Current session's username. |
-
 #### `room_joined`
 
-Confirmation that the session has transitioned to the **room** state.
+Confirmation that the session has successfully been established and has transitioned to the **room** state.
 
 *No additional properties.*
 
