@@ -9,20 +9,29 @@ Setup
 `pip install autobahn`    
 `pip install passlib`    
 `pip install nose`    
-`pip install google-api-python-client`
+`pip install google-api-python-client`    
 `pip install isodate`
 
 ### Install additional packages for Windows
 
-`pip install pywin32`
+`pip install pywin32`    
+`pip install pyopenssl`
 
-If that fails, as it does at the time of this writing due to poor 64-bit python support, install pywin32 from here: http://www.lfd.uci.edu/~gohlke/pythonlibs/#pywin32
+If that fails to install, as it does on Windows when this was written, install them manually from these locations:
+
+* pyWin32: http://www.lfd.uci.edu/~gohlke/pythonlibs/#pywin32
+* pyOpenSSL: https://pypi.python.org/pypi/pyOpenSSL
 
 ### Create the database
 
 **WARNING: This will delete the previous database.**    
 `python database_create.py -y`
 
+### Setup API keys
+
+1. Copy `site/videosync.cfg.EXAMPLE` to `site/videosync.cfg`
+2. Edit it and add your API keys:
+	* YouTube v3: https://code.google.com/apis/console
 
 Run Tests
 ---------
@@ -41,6 +50,5 @@ Start Server for Production
 ---------------------------
 
 1. Put contents of site/ directory on public webserver.
-
 2. Start videosync as a daemon:    
 	`python videosync.py`

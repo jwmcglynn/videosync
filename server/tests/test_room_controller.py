@@ -53,9 +53,12 @@ class MockUserSessionBase(object):
 
 	def wait_message_count(self, count):
 		if count != len(self.messages):
+			self.waiting_event.clear()
 			self.waiting_count = count
+
 			if not self.waiting_event.wait(5.0):
 				raise AsyncTimeout
+			self.waiting_count = 0
 
 class MockUserSession(MockUserSessionBase):
 	def __init__(self, username):
@@ -81,6 +84,10 @@ class MockGuestUserSession(MockUserSessionBase):
 		return "*%s*" % self.raw_username
 
 class TestRoomController:
+	@classmethod
+	def setup_class(cls):
+		threaded_reactor()
+
 	def setup(self):
 		database_create(k_database)
 		database.connect(k_database)
@@ -88,8 +95,6 @@ class TestRoomController:
 		system = User(0)
 		self.room_id = Room.create("Test Room", system)
 		self.room_controller = RoomController(self.room_id)
-
-		threaded_reactor()
 
 	def teardown(self):
 		database.close()
@@ -236,18 +241,26 @@ class TestRoomController:
 			, user1.messages)
 		user1.messages = []
 
+		# Add videos to queue.
 		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video1["url"]})
-		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video2["url"]})
-		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video3["url"]})
-		user1.wait_message_count(4)
+		user1.wait_message_count(2)
 		assert_equal(
 			[{"command": "add_queue_video", "video": k_video1}
-			, {"command": "change_video", "video": k_video1}
-			, {"command": "add_queue_video", "video": k_video2}
-			, {"command": "add_queue_video", "video": k_video3}]
+				, {"command": "change_video", "video": k_video1}]
 			, user1.messages)
 		user1.messages = []
 
+		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video2["url"]})
+		user1.wait_message_count(1)
+		assert_equal([{"command": "add_queue_video", "video": k_video2}], user1.messages)
+		user1.messages = []
+
+		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video3["url"]})
+		user1.wait_message_count(1)
+		assert_equal([{"command": "add_queue_video", "video": k_video3}], user1.messages)
+		user1.messages = []
+
+		# Select videos.
 		self.room_controller.process_message(user1, {"command": "select_video", "item_id": k_video1["item_id"]})
 		assert_equal(
 			[{"command": "change_video", "video": k_video1}]
@@ -320,16 +333,23 @@ class TestRoomController:
 			, user1.messages)
 		user1.messages = []
 
+		# Add videos to queue.
 		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video1["url"]})
-		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video2["url"]})
-		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video3["url"]})
-		user1.wait_message_count(4)
+		user1.wait_message_count(2)
 		assert_equal(
 			[{"command": "add_queue_video", "video": k_video1}
-			, {"command": "change_video", "video": k_video1}
-			, {"command": "add_queue_video", "video": k_video2}
-			, {"command": "add_queue_video", "video": k_video3}]
+				, {"command": "change_video", "video": k_video1}]
 			, user1.messages)
+		user1.messages = []
+
+		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video2["url"]})
+		user1.wait_message_count(1)
+		assert_equal([{"command": "add_queue_video", "video": k_video2}], user1.messages)
+		user1.messages = []
+
+		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video3["url"]})
+		user1.wait_message_count(1)
+		assert_equal([{"command": "add_queue_video", "video": k_video3}], user1.messages)
 		user1.messages = []
 
 		# Move video1 to the end.
