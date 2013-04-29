@@ -96,7 +96,7 @@ class TestRoomController:
 		user = MockUserSession("ValidationUser")
 		self.room_controller.user_connect(user)
 
-		expected_response = [{"command": "room_joined"}
+		expected_response = [{"command": "room_joined", "username": "ValidationUser"}
 			, {"command": "initial_users", "users": ["TestUser1", "ValidationUser"]}
 			, {"command": "set_moderator", "username": "TestUser1"}
 			, {"command": "initial_queue", "queue": queue}]
@@ -113,7 +113,7 @@ class TestRoomController:
 		test_user = MockUserSession("NewValidationUser")
 		new_room.user_connect(test_user)
 
-		expected_response = [{"command": "room_joined"}
+		expected_response = [{"command": "room_joined", "username": "NewValidationUser"}
 			, {"command": "initial_users", "users": ["NewValidationUser"]}
 			, {"command": "set_moderator", "username": "NewValidationUser"}
 			, {"command": "initial_queue", "queue": queue}]
@@ -129,7 +129,7 @@ class TestRoomController:
 
 		self.room_controller.user_connect(user1)
 		assert_equal(
-			[{"command": "room_joined"}
+			[{"command": "room_joined", "username": "TestUser1"}
 				, {"command": "initial_users", "users": ["TestUser1"]}
 				 , {"command": "set_moderator", "username": "TestUser1"}
 				 , {"command": "initial_queue", "queue": []}]
@@ -138,12 +138,11 @@ class TestRoomController:
 
 		self.room_controller.process_message(
 			user1
-			, {"command": "add_video"
-				, "url": k_video1["url"]})
-		user1.wait_message_count(1)
+			, {"command": "add_video", "url": k_video1["url"]})
+		user1.wait_message_count(2)
 		assert_equal(
-			[{"command": "add_queue_video"
-				, "video": k_video1}]
+			[{"command": "add_queue_video", "video": k_video1}
+				, {"command": "change_video", "video": k_video1}]
 			, user1.messages)
 		user1.messages = []
 
@@ -153,7 +152,7 @@ class TestRoomController:
 			[{"command": "user_connect", "username": "TestUser2"}]
 			, user1.messages)
 		assert_equal(
-			[{"command": "room_joined"}
+			[{"command": "room_joined", "username": "TestUser2"}
 				, {"command": "initial_users", "users": ["TestUser1", "TestUser2"]}
 				, {"command": "set_moderator", "username": "TestUser1"}
 				, {"command": "initial_queue", "queue": [k_video1]}
@@ -168,7 +167,7 @@ class TestRoomController:
 		## Validate username decoration.
 		self.room_controller.user_connect(test_user)
 		assert_equal(
-			[{"command": "room_joined"}
+			[{"command": "room_joined", "username": "*TestGuestUser*"}
  				, {"command": "initial_users", "users": ["*TestGuestUser*"]}
  				, {"command": "set_moderator", "username": "*TestGuestUser*"}
  				, {"command": "initial_queue", "queue": []}]
@@ -226,7 +225,7 @@ class TestRoomController:
 
 		self.room_controller.user_connect(user1)
 		assert_equal(
-			[{"command": "room_joined"}
+			[{"command": "room_joined", "username": "TestUser1"}
 				, {"command": "initial_users", "users": ["TestUser1"]}
 				 , {"command": "set_moderator", "username": "TestUser1"}
 				 , {"command": "initial_queue", "queue": []}]
@@ -236,9 +235,10 @@ class TestRoomController:
 		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video1["url"]})
 		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video2["url"]})
 		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video3["url"]})
-		user1.wait_message_count(3)
+		user1.wait_message_count(4)
 		assert_equal(
 			[{"command": "add_queue_video", "video": k_video1}
+			, {"command": "change_video", "video": k_video1}
 			, {"command": "add_queue_video", "video": k_video2}
 			, {"command": "add_queue_video", "video": k_video3}]
 			, user1.messages)
@@ -309,7 +309,7 @@ class TestRoomController:
 
 		self.room_controller.user_connect(user1)
 		assert_equal(
-			[{"command": "room_joined"}
+			[{"command": "room_joined", "username": "TestUser1"}
 				, {"command": "initial_users", "users": ["TestUser1"]}
 				 , {"command": "set_moderator", "username": "TestUser1"}
 				 , {"command": "initial_queue", "queue": []}]
@@ -319,9 +319,10 @@ class TestRoomController:
 		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video1["url"]})
 		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video2["url"]})
 		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video3["url"]})
-		user1.wait_message_count(3)
+		user1.wait_message_count(4)
 		assert_equal(
 			[{"command": "add_queue_video", "video": k_video1}
+			, {"command": "change_video", "video": k_video1}
 			, {"command": "add_queue_video", "video": k_video2}
 			, {"command": "add_queue_video", "video": k_video3}]
 			, user1.messages)

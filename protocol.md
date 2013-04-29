@@ -159,7 +159,9 @@ Server-to-client messages
 
 Confirmation that the session has successfully been established and has transitioned to the **room** state.
 
-*No additional properties.*
+| Name         | Type            | Details |
+|-------------:|:---------------:|:--------|
+| username     | `username_type` | Username, either generated username for guests or registered username. |
 
 #### `initial_users`
 
@@ -233,7 +235,7 @@ Reports a new video added to the end of the queue.
 
 | Name   | Type         | Details |
 |-------:|:------------:|:--------|
-| queue  | `video_type` | Video information. |
+| video  | `video_type` | Video information. |
 
 #### `move_queue_video`
 

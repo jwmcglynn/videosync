@@ -189,7 +189,8 @@ class RoomController:
 
 	def user_connect(self, user_session):
 		user_session.send(
-			{"command": "room_joined"})
+			{"command": "room_joined"
+				, "username": user_session.username})
 		self.broadcast(
 			{"command": "user_connect"
 				, "username": user_session.username})
@@ -279,6 +280,12 @@ class RoomController:
 			, video_info.start_time)
 		self.__queue.append(video)
 
+		serialized_video = self.serialize_video(video)
 		self.broadcast(
 			{"command": "add_queue_video"
-				, "video": self.serialize_video(video)})
+				, "video": serialized_video})
+
+		if len(self.__queue) == 1:
+			self.broadcast(
+				{"command": "change_video"
+					, "video": serialized_video})

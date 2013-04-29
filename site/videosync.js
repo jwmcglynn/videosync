@@ -1,3 +1,5 @@
+var k_sync_threshold = 1.0;
+
 String.prototype.format = function() {
     var s = this;
     var i = arguments.length;
@@ -7,6 +9,22 @@ String.prototype.format = function() {
     }
     return s;
 };
+
+function query_variable(url, name) {
+	var parser = document.createElement("a");
+	parser.href = url;
+
+	var query = parser.search.substring(1);
+	var vars = query.split("&");
+    for (var i = 0; i < vars.length; i++) {
+        var pair = vars[i].split("=");
+        if (decodeURIComponent(pair[0]) == name) {
+            return decodeURIComponent(pair[1]);
+        }
+    }
+
+    return null;
+}
 
 (function() {
 	var videosync = this;
@@ -41,56 +59,230 @@ String.prototype.format = function() {
 		message = JSON.parse(messageStr);
 
 		if (message.command) {
-			if (message.command == "initialState") {
-				// TODO - Handle queuing of instructions
-				// message contains video, videoState, position
-			} else if (message.command == "updateControl") {
-				controller.setHasControl(message.control);
-			} else if (message.command == "changeVideo") {
-				controller.changeVideo(message.video);
-			} else if (message.command == "videoState" && !controller.hasControl) {
-				if (message.videoState == videoStates.PLAYING) {
-					controller.play();
-				} else if (message.videoState == videoStates.PAUSED) {
-					controller.pause();
+			if (message.command == "room_joined") {
+				controller.connected = true;
+				controller.username = message.username;
+			} else if (message.command == "initial_users") {
+				users.initialize(message.users);
+			} else if (message.command == "initial_queue") {
+				queue.initialize(message.queue);
+			} else if (message.command == "guest_username_changed") {
+				users.rename(message.old_username, message.username);
+			} else if (message.command == "user_connect") {
+				users.add(message.username);
+			} else if (message.command == "user_disconnect") {
+				users.remove(message.username);
+			} else if (message.command == "set_moderator") {
+				users.set_moderator(message.username);
+				controller.set_moderator(controller.username == message.username);
+			} else if (message.command == "change_video") {
+				queue.active_video(message.video);
+				controller.change_video(message.video);
+			} else if (message.command == "video_state" && !controller.is_moderator) {
+				if (message.state == "playing") {
+					controller.play(message.position);
+				} else if (message.state == "paused") {
+					controller.pause(message.position);
 				}
-			} else if (message.command == "reportPlaybackPosition" && !controller.hasControl) {
-				controller.syncWithTime(message.position);
+			} else if (message.command == "add_queue_video") {
+				queue.add(message.video);
+			} else if (message.command == "move_queue_video") {
+				queue.move(message.item_id, message.index);
+			} else if (message.command == "remove_queue_video") {
+				queue.remove(message.item_id);
+			} else if (message.command == "command_error") {
+				// TODO
+				debugPrint("Command error {0}: {1}".format(message.context, message.reason));
 			}
 		}
 	}
 
-	var controller = {
-		hasControl: false,
-		videoService: null,
+	var users = {
+		data: [],
+		moderator: null,
 
-		setHasControl: function(value) {
-			controller.hasControl = value;
-			if (controller.hasControl) {
-				$("#takeControl").attr('disabled', 'disabled');
+		initialize: function(initial_users) {
+			// TODO: Update UI.
+			users.data = initial_users;
+			users.update_ui();
+		},
+
+		add: function(username) {
+			users.data.push(username);
+			users.update_ui();
+		},
+
+		remove: function(username) {
+			var index = users.data.indexOf(old_username);
+			if (index != -1) {
+				users.data.splice(index, 1);
 			} else {
-				$("#takeControl").attr('disabled', '');
+				debugPrint("Error: Could not find user to remove.");
+			}
+
+			users.update_ui();
+		},
+
+		rename_user: function(old_username, username) {
+			var index = users.data.indexOf(old_username);
+			if (index != -1) {
+				users.data[index] = username;
+			} else {
+				debugPrint("Error: Could not find user to rename.");
+			}
+
+			users.update_ui();
+		},
+
+		set_moderator: function(username) {
+			users.moderator = username;
+		},
+
+		update_ui: function() {
+			// TODO: Better UI.
+			$("#users").text("Users: " + users.data.join(", "));
+		}
+	};
+
+	var queue = {
+		data: [],
+		current_index: [],
+
+		initialize: function(initial_queue) {
+			// TODO: Update UI.
+			queue.data = initial_queue;
+			queue.update_ui();
+		},
+
+		active_video: function(video) {
+			var index = -1;
+			for (var i = 0; i < queue.data.length; ++i) {
+				if (queue.data[i].item_id == video.item_id) {
+					index = i;
+					break;
+				}
+			}
+
+			if (index != -1) {
+				queue.current_index = index;
+			} else {
+				debugPrint("Error: Could not find video to select.");
 			}
 		},
 
-		changeVideo: function(url) {
-			// TODO: Determine video and load appropriate player.
-			controller.videoService = "youtube";
-			youtube.loadPlayer();
+		next_video_id: function() {
+			var next_index = queue.current_index + 1;
+			if (next_index >= queue.data.length) {
+				next_index = 0;
+			}
+
+			return queue.data[next_index].item_id;
 		},
 
-		play: function() {
+		add: function(video) {
+			queue.data.push(video);
+			queue.update_ui();
+		},
+
+		remove: function(item_id) {
+			var index = -1;
+			for (var i = 0; i < queue.data.length; ++i) {
+				if (queue.data[i].item_id == item_id) {
+					index = i;
+					break;
+				}
+			}
+
+			if (index != -1) {
+				queue.data.splice(index, 1);
+			} else {
+				debugPrint("Error: Could not find video to remove.");
+			}
+
+			queue.update_ui();
+		},
+
+		move: function(item_id, index) {
+			var old_index = -1;
+			for (var i = 0; i < queue.data.length; ++i) {
+				if (queue.data[i].item_id == item_id) {
+					old_index = i;
+					break;
+				}
+			}
+
+			if (old_index != -1) {
+				var video = queue.data.splice(old_index, 1);
+				queue.data.splice(index, 0, video);
+			} else {
+				debugPrint("Error: Could not find video to remove.");
+			}
+
+			queue.update_ui();
+		},
+
+		update_ui: function() {
+			var content = [];
+
+			for (var i = 0; i < queue.data.length; ++i) {
+				var name = queue.data[i].title;
+				var duration = queue.data[i].duration;
+
+				content.push("{0} ({1}:{2})".format(htmlEncode(name), Math.round(duration / 60), Math.round(duration % 60)));
+			}
+
+			// TODO: Better UI.
+			$("#queue").text("Queue: " + content.join(", "));
+		}
+	};
+
+	var controller = {
+		connected: false,
+		is_moderator: false,
+		username: null,
+
+		current_player: null,
+
+		set_moderator: function(value) {
+			controller.is_moderator = value;
+			if (controller.is_moderator) {
+				debugPrint("SetModerator");
+				$("#nextVideo").removeAttr("disabled");
+			} else {
+				debugPrint("UnsetModerator");
+				$("#nextVideo").attr("disabled", "disabled");
+			}
+		},
+
+		change_video: function(video) {
+			if (controller.current_player) {
+				controller.current_player.unload();
+			}
+
+			if (video.service == "youtube") {
+				controller.current_player = youtube;
+			} else {
+				controller.current_player = null;
+				debugPrint("Invalid video service {0}".format(video.service));
+			}
+
+			if (controller.current_player) {
+				controller.current_player.load(video);
+			}
+		},
+
+		play: function(seconds) {
 			debugPrint("controller.play()");
-			youtube.play();
+			youtube.play(seconds);
 		},
 
-		pause: function() {
+		pause: function(seconds) {
 			debugPrint("controller.pause()");
-			youtube.pause();
+			youtube.pause(seconds);
 		},
 
-		syncWithTime: function(seconds) {
-			youtube.syncWithTime(seconds);
+		sync_with_time: function(seconds) {
+			youtube.sync_with_time(seconds);
 		}
 	};
 	
@@ -102,18 +294,19 @@ String.prototype.format = function() {
 		haveControl: false,
 		progressReporter: null,
 		lastPlaybackPosition: NaN,
+		lastVideoState: videoStates.UNSTARTED,
 		
-		onPlayerReady: function(event) {
+		on_player_ready: function(event) {
 			youtube.playerReady = true;
 		},
 		
-		onPlayerPlaybackQualityChange: function(event) {
+		on_playback_quality_change: function(event) {
 			youtube.defaultQuality = event.data;
 		},
 		
-		onPlayerStateChange: function(event) {
-			if(!controller.hasControl || controller.videoService != "youtube") {
-				debugPrint("Don't have control!");
+		on_player_state_change: function(event) {
+			if (controller.current_player != youtube) {
+				debugPrint("Youtube not playing!");
 				return;
 			}
 			/*
@@ -124,87 +317,133 @@ String.prototype.format = function() {
 				YT.PlayerState.BUFFERING
 				YT.PlayerState.CUED
 			*/
+			var state = videoStates.UNSTARTED;
+			var time = youtube.getCurrentTime();
 			if (event.data == YT.PlayerState.PLAYING) {
-				// TODO: Report time here as well.
-				socket.send({command: "videoState", videoState: videoStates.PLAYING});
+				state = videoStates.PLAYING;
 			} else if (event.data == YT.PlayerState.PAUSED) {
-				// TODO: Report time here as well.
-				socket.send({command: "videoState", videoState: videoStates.PAUSED});
+				if (youtube.getCurrentTime() + k_sync_threshold >= youtube.getTotalTime()) {
+					// At the end of video we get a PAUSED->ENDED.  Ignore the PAUSED is we're close to the end.
+					// TODO: Better handling.
+					return;
+				}
+				state = videoStates.PAUSED;
 			} else if (event.data == YT.PlayerState.BUFFERING) {
-				socket.send({command: "reportPlaybackPosition", position: youtube.getCurrentTime()});
+				state = videoStates.PLAYING;
 			} else if (event.data == YT.PlayerState.ENDED) {
-				socket.send({command: "videoState", videoState: videoStates.ENDED});
+				state = videoStates.PLAYING;
+			}
+
+			if (state != youtube.lastVideoState
+					|| time != youtube.lastPlaybackPosition) {
+				if (controller.is_moderator) {
+					socket.send(
+						{command: "update_video_state"
+						, position: time
+						, "state": (state == videoStates.PLAYING ? "playing" : "paused")});
+					youtube.lastPlaybackPosition = time;
+				}
+				youtube.lastVideoState = state;
 			}
 		},
 		
-		onPlayerError: function(event) {
+		on_player_error: function(event) {
 			
 		},
 		
-		loadPlayer: function() {
+		load: function(video) {
 			$('<div/>', { id: 'player' }).appendTo('#playerContainer');
 			youtube.player = new YT.Player('player', {
 				height: '390',
 				width: '640',
-				videoId: 'zSfqhDnPTiI',
+				videoId: query_variable(video.url, "v"),
 				//playerVars: { 'autoplay': 1 },
 				events: {
-					'onReady': youtube.onPlayerReady,
-					'onPlaybackQualityChange': youtube.onPlayerPlaybackQualityChange,
-					'onStateChange': youtube.onPlayerStateChange,
-					'onError': youtube.onPlayerError
+					'onReady': youtube.on_player_ready,
+					'onPlaybackQualityChange': youtube.on_playback_quality_change,
+					'onStateChange': youtube.on_player_state_change,
+					'onError': youtube.on_player_error
 				}
 			});
 
 			clearInterval(youtube.progressReporter);
-			youtube.progressReproter = setInterval(function() {
-				currentPosition = youtube.getCurrentTime();
-				if (controller.hasControl && controller.lastPlaybackPosition != currentPosition) {
-					controller.lastPlaybackPosition = currentPosition;
-					socket.send({command: "reportPlaybackPosition", position: currentPosition});
+			youtube.progressReporter = setInterval(function() {
+				var time = youtube.getCurrentTime();
+				if (controller.is_moderator && youtube.lastPlaybackPosition != time) {
+					socket.send(
+						{command: "update_video_state"
+						, position: time
+						, "state": (youtube.lastVideoState == videoStates.PLAYING ? "playing" : "paused")});
+					youtube.lastPlaybackPosition = time;
 				}
 			}, 500);
+		},
+
+		unload: function() {
+			clearInterval(youtube.progressReporter);
+			youtube.player = null;
+			youtube.playerReady = false;
+			$("#playerContainer").html("");
 		},
 		
 		loadVideo: function(videoID) {
 			var options = {videoId: videoID};
-			if(defaultQuality != null)
+			if(defaultQuality != null) {
 				options.suggestedQuality = defaultQuality;
+			}
 			youtube.player.loadVideoById(options);	
 		},
 		
-		play: function() {
-			if(youtube.player)
-				youtube.player.playVideo()
+		play: function(seconds) {
+			if (youtube.playerReady) {
+				if (youtube.lastVideoState == videoStates.PLAYING) {
+					debugPrint("PlayVideo");
+					youtube.sync_with_time(seconds);
+				} else {
+					if (seconds != 0) {
+						youtube.seek(seconds);
+					}
+
+					debugPrint("PlayVideo");
+					if (youtube.player.playVideo) {
+						youtube.player.playVideo();
+					}
+				}
+			}
 		},
 		
-		pause: function() {
-			if(youtube.player)
+		pause: function(seconds) {
+			if (youtube.playerReady) {
 				youtube.player.pauseVideo();
+				youtube.seek(seconds);
+			}
 		},
 		
 		seek: function(seconds) {
-			if(youtube.player)
+			if (youtube.playerReady) {
 				youtube.player.seekTo(seconds, true);
+			}
 		},
 
-		syncWithTime: function(seconds) {
+		sync_with_time: function(seconds) {
 			var localTime = youtube.getCurrentTime();
-			if (Math.abs(localTime - seconds) > 2.0) {
+			if (Math.abs(localTime - seconds) > k_sync_threshold) {
 				debugPrint("Seeking to " + seconds);
 				youtube.seek(seconds);
 			}
 		},
 		
 		getCurrentTime: function() {
-			if(youtube.player)
+			if (youtube.playerReady && youtube.player.getCurrentTime) {
 				return youtube.player.getCurrentTime();
+			}
 			return 0;
 		},
 		
 		getTotalTime: function() {
-			if(youtube.player)
+			if (youtube.playerReady && youtube.player.getDuration) {
 				return youtube.player.getDuration();
+			}
 			return 0;
 		}
 	}
@@ -283,15 +522,13 @@ String.prototype.format = function() {
 		socket.connect();
 		
 		// Hook up UI.
-		$("#takeControl").click(function() {
-			socket.send({command: "takeControl"});
+		$("#nextVideo").click(function() {
+			socket.send({command: "select_video", item_id: queue.next_video_id()});
 		});
-		$("#loadVideo").click(function() {
-			if (!controller.hasControl) {
-				debugPrint("Don't have control!");
-			} else {
-				socket.send({command: "changeVideo", video: "http://example.com"});
-			}
+		$("#addVideo").click(function() {
+			var urlField = $("#videoURL");
+			socket.send({command: "add_video", url: urlField.val()});
+			urlField.val("");
 		});
 	});
 })();
