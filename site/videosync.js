@@ -236,7 +236,7 @@ String.prototype.format = function() {
 		
 		connect: function() {
 			if (websock != null && socket.sock == null) { // If websocket is supported and socket not already open
-				var websockuri = "ws://" + window.location.hostname + ":9000";
+				var websockuri = "ws://" + window.location.hostname + ":9000/room/0";
 				var newSocket = new websock(websockuri);
 		
 				if (newSocket) {
