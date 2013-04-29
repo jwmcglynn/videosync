@@ -26,7 +26,21 @@ body {
 	margin: 0;
 	margin-bottom: 2px;
 	list-style: none;
+	background-color: #000;
+}
+
+#queue .highlighted {
 	background-color: #111;
+}
+
+#queue li.hover {
+	background-color: #222;
+}
+
+#queue li .play {
+	float: left;
+	margin-right: 5px;
+	cursor: hand;
 }
 
 #queue li .title {
@@ -35,4 +49,10 @@ body {
 
 #queue li .time {
 	float: right;
+}
+
+#queue li .remove {
+	float: right;
+	margin-right: 5px;
+	cursor: hand;
 }

@@ -164,7 +164,7 @@ function format_time(seconds) {
 
 	var queue = {
 		data: [],
-		current_index: [],
+		current_index: -1,
 		html_entities: [],
 
 		initialize: function(initial_queue) {
@@ -186,6 +186,7 @@ function format_time(seconds) {
 				$("#queue").disableSelection();
 			} else {
 				$("#queue").sortable("cancel");
+				$("#queue").find('.show_on_hover').hide();
 			}
 		},
 
@@ -198,8 +199,13 @@ function format_time(seconds) {
 				}
 			}
 
+			if (queue.current_index != -1) {
+				queue.html_entities[queue.current_index].switchClass("highlighted", "", 200);
+			}
+
 			if (index != -1) {
 				queue.current_index = index;
+				queue.html_entities[index].switchClass("", "highlighted", 200);
 			} else {
 				debugPrint("Error: Could not find video to select.");
 			}
@@ -219,8 +225,44 @@ function format_time(seconds) {
 
 			var $entity = $("<li class='ui-state-default'>");
 			$entity.attr("item_id", video.item_id);
+			var $play_button = $("<span class='play show_on_hover'>").text(">").hide();
+			$entity.append($play_button);
 			$entity.append($("<span class='title'>").text(video.title));
 			$entity.append($("<span class='time'>").text(format_time(video.duration)));
+			var $remove_button = $("<span class='remove show_on_hover'>").text("X").hide();
+			$entity.append($remove_button);
+
+			$entity.hover(
+				function() {
+					if (controller.is_moderator) {
+						$(this).switchClass("", "hover", 200);
+						$(this).find('.show_on_hover').fadeIn(200);
+					}
+				},
+				function () {
+					$(this).switchClass("hover", "", 200);
+					$(this).find('.show_on_hover').fadeOut(200);
+				});
+
+			$play_button.click(
+				function() {
+					socket.send(
+							{command: "select_video"
+							, item_id: video.item_id});
+				});
+
+			$remove_button.click(
+				function() {
+					$entity.slideUp({
+						done: function() {
+							queue.remove(video.item_id);
+						}});
+				
+					socket.send(
+							{command: "remove_video"
+							, item_id: video.item_id});
+				});
+
 			// TODO: Remove button.
 
 			queue.html_entities.push($entity);
@@ -315,6 +357,7 @@ function format_time(seconds) {
 				controller.current_player = null;
 				debugPrint("Invalid video service {0}".format(video.service));
 			}
+
 
 			if (controller.current_player) {
 				controller.current_player.load(video);
