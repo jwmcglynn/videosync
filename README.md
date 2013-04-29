@@ -9,6 +9,8 @@ Setup
 `pip install autobahn`    
 `pip install passlib`    
 `pip install nose`    
+`pip install google-api-python-client`
+`pip install isodate`
 
 ### Install additional packages for Windows
 

@@ -7,7 +7,7 @@ def connect(database_file):
 	if __connection is not None:
 		__connection.close()
 
-	__connection = sqlite3.connect(database_file)
+	__connection = sqlite3.connect(database_file, check_same_thread=False)
 
 def close():
 	global __connection
