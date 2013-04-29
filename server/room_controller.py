@@ -170,8 +170,20 @@ class RoomController:
 		if video is None:
 			raise CommandError("Video not found.")
 
+		removed_index = self.__queue.index(video)
 		self.__queue.remove(video)
 		video.remove()
+
+		if removed_index == self.__current_video_index:
+			new_index = self.__current_video_index
+			if new_index == len(self.__queue) and new_index > 0:
+				new_index -= 1
+			self.__current_video_index = new_index
+			self.__current_video_time = 0.0
+
+			self.broadcast(
+				{"command": "change_video"
+					, "video": self.serialize_video(self.__queue[new_index])})
 
 		self.broadcast(
 			{"command": "remove_queue_video"
