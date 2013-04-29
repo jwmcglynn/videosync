@@ -1,48 +1,39 @@
-var k_sync_threshold = 1.0;
-
 String.prototype.format = function() {
 	var s = this;
 	var i = arguments.length;
 
 	while (i--) {
-		s = s.replace(new RegExp('\\{' + i + '\\}', 'gm'), arguments[i]);
+		s = s.replace(new RegExp("\\{" + i + "\\}", "gm"), arguments[i]);
 	}
 	return s;
 };
 
-function query_variable(url, name) {
-	var parser = document.createElement("a");
-	parser.href = url;
+(function($, sr) {
+	// debouncing function from John Hann
+	// http://unscriptable.com/index.php/2009/03/20/debouncing-javascript-methods/
+	var debounce = function (func, threshold, execAsap) {
+		var timeout;
 
-	var query = parser.search.substring(1);
-	var vars = query.split("&");
-	for (var i = 0; i < vars.length; i++) {
-		var pair = vars[i].split("=");
-		if (decodeURIComponent(pair[0]) == name) {
-			return decodeURIComponent(pair[1]);
-		}
+		return function debounced () {
+				var obj = this, args = arguments;
+				function delayed () {
+						if (!execAsap)
+								func.apply(obj, args);
+						timeout = null;
+				};
+
+				if (timeout)
+						clearTimeout(timeout);
+				else if (execAsap)
+						func.apply(obj, args);
+
+				timeout = setTimeout(delayed, threshold || 100);
+		};
 	}
 
-	return null;
-}
-
-function format_time(seconds) {
-	var hours = Math.floor(seconds / 3600);
-	seconds -= hours * 3600;
-	var minutes = Math.floor(seconds / 60);
-	seconds -= minutes * 60;
-
-	function prefix(num) {
-		if (num < 10) return "0" + num;
-		else return num;
-	}
-
-	if (hours) {
-		return "{0}:{1}:{2}".format(hours, prefix(minutes), prefix(seconds));
-	} else {
-		return "{0}:{1}".format(minutes, prefix(seconds));
-	}
-}
+	// smartresize 
+	jQuery.fn[sr] = function(fn) { return fn ? this.bind("resize", debounce(fn)) : this.trigger(sr); };
+})(jQuery, "smartresize");
 
 (function() {
 	var videosync = this;
@@ -54,26 +45,64 @@ function format_time(seconds) {
 		BUFFERING: 3,
 		ENDED: 4
 	}
+
+	var SYNC_THRESHOLD = 1.0;
+	var ASPECT_RATIO = 640.0 / 390.0;
+	var MINIMUM_QUEUE_HEIGHT = 200.0;
 	
-	function htmlEncode(text) {
+	function html_encode(text) {
 		return $("<div/>").text(text).html();
 	}
 
-	function debugPrint(text) {
-		var debugBox = $("#debugPrintout");
+	function debug_print(text) {
+		var debugBox = $("#debug_printout");
 		var isAtBottom = (debugBox.prop("scrollHeight") - debugBox.scrollTop() == debugBox.height());
-		debugBox.append(htmlEncode(text) + "<br>");
+		debugBox.append(html_encode(text) + "<br>");
 		if (isAtBottom) {
 			debugBox.scrollTop(debugBox.prop("scrollHeight"));
 		}
 	}
 
-	function handleError(error) {
+	function query_variable(url, name) {
+		var parser = document.createElement("a");
+		parser.href = url;
+
+		var query = parser.search.substring(1);
+		var vars = query.split("&");
+		for (var i = 0; i < vars.length; i++) {
+			var pair = vars[i].split("=");
+			if (decodeURIComponent(pair[0]) == name) {
+				return decodeURIComponent(pair[1]);
+			}
+		}
+
+		return null;
+	}
+
+	function format_time(seconds) {
+		var hours = Math.floor(seconds / 3600);
+		seconds -= hours * 3600;
+		var minutes = Math.floor(seconds / 60);
+		seconds -= minutes * 60;
+
+		function prefix(num) {
+			if (num < 10) return "0" + num;
+			else return num;
+		}
+
+		if (hours) {
+			return "{0}:{1}:{2}".format(hours, prefix(minutes), prefix(seconds));
+		} else {
+			return "{0}:{1}".format(minutes, prefix(seconds));
+		}
+	}
+
+	function handle_error(error) {
 	
 	}
 	
-	function handleMessage(messageStr) {
-		debugPrint("Got message: " + messageStr);
+	function handle_message(messageStr) {
+		debug_print("Got message: " + messageStr);
 		message = JSON.parse(messageStr);
 
 		if (message.command) {
@@ -110,7 +139,7 @@ function format_time(seconds) {
 				queue.remove(message.item_id);
 			} else if (message.command == "command_error") {
 				// TODO
-				debugPrint("Command error {0}: {1}".format(message.context, message.reason));
+				debug_print("Command error {0}: {1}".format(message.context, message.reason));
 			}
 		}
 	}
@@ -135,7 +164,7 @@ function format_time(seconds) {
 			if (index != -1) {
 				users.data.splice(index, 1);
 			} else {
-				debugPrint("Error: Could not find user to remove.");
+				debug_print("Error: Could not find user to remove.");
 			}
 
 			users.update_ui();
@@ -146,7 +175,7 @@ function format_time(seconds) {
 			if (index != -1) {
 				users.data[index] = username;
 			} else {
-				debugPrint("Error: Could not find user to rename.");
+				debug_print("Error: Could not find user to rename.");
 			}
 
 			users.update_ui();
@@ -174,8 +203,11 @@ function format_time(seconds) {
 		},
 
 		update_moderator: function() {
+			var $queue = $("#queue");
+
 			if (controller.is_moderator) {
-				$("#queue").sortable({
+				$queue.addClass("moderator");
+				$queue.sortable({
 					update: function(e, ui) {
 						socket.send(
 							{command: "move_video"
@@ -183,10 +215,11 @@ function format_time(seconds) {
 							, index: ui.item.index()});
 					}
 				});
-				$("#queue").disableSelection();
+				$queue.disableSelection();
 			} else {
-				$("#queue").sortable("cancel");
-				$("#queue").find('.show_on_hover').hide();
+				$queue.removeClass("moderator");
+				$queue.sortable("cancel");
+				$queue.find(".show_on_hover").hide();
 			}
 		},
 
@@ -199,7 +232,7 @@ function format_time(seconds) {
 				}
 			}
 
-			if (queue.current_index != -1) {
+			if (queue.current_index != -1 && queue.html_entities[queue.current_index]) {
 				queue.html_entities[queue.current_index].switchClass("highlighted", "", 200);
 			}
 
@@ -207,7 +240,7 @@ function format_time(seconds) {
 				queue.current_index = index;
 				queue.html_entities[index].switchClass("", "highlighted", 200);
 			} else {
-				debugPrint("Error: Could not find video to select.");
+				debug_print("Error: Could not find video to select.");
 			}
 		},
 
@@ -225,45 +258,47 @@ function format_time(seconds) {
 
 			var $entity = $("<li class='ui-state-default'>");
 			$entity.attr("item_id", video.item_id);
-			var $play_button = $("<span class='play show_on_hover'>").text(">").hide();
+			var $play_button = $("<span class='play moderator_controls'>").html("<img src='play.svg' width='20' height='20'>").css("opacity", 0);
 			$entity.append($play_button);
-			$entity.append($("<span class='title'>").text(video.title));
+			$entity.append($("<span class='title'>").append($("<a>").text(video.title).attr({href: video.url, target: "_blank"})));
 			$entity.append($("<span class='time'>").text(format_time(video.duration)));
-			var $remove_button = $("<span class='remove show_on_hover'>").text("X").hide();
+			var $remove_button = $("<span class='remove moderator_controls'>").html("<img src='delete.svg' width='20' height='20'>").hide();
 			$entity.append($remove_button);
 
 			$entity.hover(
 				function() {
 					if (controller.is_moderator) {
 						$(this).switchClass("", "hover", 200);
-						$(this).find('.show_on_hover').fadeIn(200);
+						$(this).find(".moderator_controls").fadeTo(200, 1);
 					}
 				},
 				function () {
 					$(this).switchClass("hover", "", 200);
-					$(this).find('.show_on_hover').fadeOut(200);
+					$(this).find(".moderator_controls").fadeTo(200, 0);
 				});
 
 			$play_button.click(
 				function() {
-					socket.send(
-							{command: "select_video"
-							, item_id: video.item_id});
+					if (controller.is_moderator) {
+						socket.send(
+								{command: "select_video"
+								, item_id: video.item_id});
+					}
 				});
 
 			$remove_button.click(
 				function() {
-					$entity.slideUp({
-						done: function() {
-							queue.remove(video.item_id);
-						}});
-				
-					socket.send(
-							{command: "remove_video"
-							, item_id: video.item_id});
+					if (controller.is_moderator) {
+						$entity.slideUp({
+							done: function() {
+								queue.remove(video.item_id);
+							}});
+					
+						socket.send(
+								{command: "remove_video"
+								, item_id: video.item_id});
+					}
 				});
-
-			// TODO: Remove button.
 
 			queue.html_entities.push($entity);
 			$("#queue").append($entity);
@@ -289,7 +324,7 @@ function format_time(seconds) {
 					$("#queue").sortable("refresh");
 				}
 			} else {
-				debugPrint("Error: Could not find video to remove.");
+				debug_print("Error: Could not find video to remove.");
 			}
 		},
 
@@ -320,7 +355,7 @@ function format_time(seconds) {
 					$("#queue").sortable("refresh");
 				}
 			} else {
-				debugPrint("Error: Could not find video to move.");
+				debug_print("Error: Could not find video to move.");
 			}
 		}
 	};
@@ -335,11 +370,6 @@ function format_time(seconds) {
 		set_moderator: function(value) {
 			var was_moderator = controller.is_moderator;
 			controller.is_moderator = value;
-			if (controller.is_moderator) {
-				$("#nextVideo").removeAttr("disabled");
-			} else {
-				$("#nextVideo").attr("disabled", "disabled");
-			}
 
 			if (was_moderator != controller.is_moderator) {
 				queue.update_moderator();
@@ -355,7 +385,7 @@ function format_time(seconds) {
 				controller.current_player = youtube;
 			} else {
 				controller.current_player = null;
-				debugPrint("Invalid video service {0}".format(video.service));
+				debug_print("Invalid video service {0}".format(video.service));
 			}
 
 
@@ -374,6 +404,29 @@ function format_time(seconds) {
 
 		sync_with_time: function(seconds) {
 			youtube.sync_with_time(seconds);
+		},
+
+		resize_video: function() {
+			var $queue = $("#queue_container");
+			var $controls = $("#controls_container");
+
+			var width = $(window).width() - $("#sidebar").outerWidth();
+			if (width <= 0) {
+				width = 640;
+			}
+
+			var height = width / ASPECT_RATIO;
+			if ($(window).height() - height < MINIMUM_QUEUE_HEIGHT + $controls.outerHeight()) {
+				height = $(window).height() - MINIMUM_QUEUE_HEIGHT - $controls.outerHeight();
+				width = height * ASPECT_RATIO;
+			}
+
+			$queue.height($(window).height() - height - $controls.outerHeight());
+			$("#player_container").height(height);
+
+			if (controller.current_player) {
+				controller.current_player.resize(width, height);
+			}
 		}
 	};
 	
@@ -397,7 +450,7 @@ function format_time(seconds) {
 		
 		on_player_state_change: function(event) {
 			if (controller.current_player != youtube) {
-				debugPrint("Youtube not playing!");
+				debug_print("Youtube not playing!");
 				return;
 			}
 			/*
@@ -413,7 +466,7 @@ function format_time(seconds) {
 			if (event.data == YT.PlayerState.PLAYING) {
 				state = videoStates.PLAYING;
 			} else if (event.data == YT.PlayerState.PAUSED) {
-				if (youtube.getCurrentTime() + k_sync_threshold >= youtube.getTotalTime()) {
+				if (youtube.getCurrentTime() + SYNC_THRESHOLD >= youtube.getTotalTime()) {
 					// At the end of video we get a PAUSED->ENDED.  Ignore the PAUSED is we're close to the end.
 					// TODO: Better handling.
 					return;
@@ -443,17 +496,18 @@ function format_time(seconds) {
 		},
 		
 		load: function(video) {
-			$('<div/>', { id: 'player' }).appendTo('#playerContainer');
-			youtube.player = new YT.Player('player', {
-				height: '390',
-				width: '640',
+			$container = $("#player_container");
+			$container.append($("<div>", {id: "player"}));
+			youtube.player = new YT.Player("player", {
+				height: $container.height(),
+				width: $container.width(),
 				videoId: query_variable(video.url, "v"),
 				//playerVars: { 'autoplay': 1 },
 				events: {
-					'onReady': youtube.on_player_ready,
-					'onPlaybackQualityChange': youtube.on_playback_quality_change,
-					'onStateChange': youtube.on_player_state_change,
-					'onError': youtube.on_player_error
+					"onReady": youtube.on_player_ready,
+					"onPlaybackQualityChange": youtube.on_playback_quality_change,
+					"onStateChange": youtube.on_player_state_change,
+					"onError": youtube.on_player_error
 				}
 			});
 
@@ -474,7 +528,12 @@ function format_time(seconds) {
 			clearInterval(youtube.progressReporter);
 			youtube.player = null;
 			youtube.playerReady = false;
-			$("#playerContainer").html("");
+			$("#player_container").html("");
+		},
+
+		resize: function(width, height) {
+			var video = $("#player_container iframe");
+			video.width(width).height(height);
 		},
 		
 		loadVideo: function(videoID) {
@@ -516,8 +575,8 @@ function format_time(seconds) {
 
 		sync_with_time: function(seconds) {
 			var localTime = youtube.getCurrentTime();
-			if (Math.abs(localTime - seconds) > k_sync_threshold) {
-				debugPrint("Seeking to " + seconds);
+			if (Math.abs(localTime - seconds) > SYNC_THRESHOLD) {
+				debug_print("Seeking to " + seconds);
 				youtube.seek(seconds);
 			}
 		},
@@ -542,19 +601,16 @@ function format_time(seconds) {
 	}
 
 	// Load Youtube Iframe API
-	var tag = document.createElement('script');
+	$.getScript("https://www.youtube.com/iframe_api");
 
-	tag.src = "https://www.youtube.com/iframe_api";
-	var firstScriptTag = document.getElementsByTagName('script')[0];
-	firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-	
 	// Get WebSocket object
 	var websock = null;
-	if("WebSocket" in window) {
+	if ("WebSocket" in window) {
 		websock = WebSocket;
-	} else if("MozWebSocket" in window) {
+	} else if ("MozWebSocket" in window) {
 		websock = MozWebSocket;
 	} else {
+		debug_print("Browser does not support websockets.");
 		// Error -- Browser does not support websockets
 	}
 	
@@ -571,25 +627,25 @@ function format_time(seconds) {
 					newSocket.onopen = function() {
 						socket.sock = newSocket;
 						socket.connected = true;
-						debugPrint("Socket connected");
+						debug_print("Socket connected");
 					}
 					
 					newSocket.onerror = function(event) {
 						// Error -- Something went wrong with the websocket
-						debugPrint("Socket error");
+						debug_print("Socket error");
 					}
 			
 					newSocket.onclose = function(event) {
 						if (socket.sock == newSocket) {
 							socket.sock = null;
 							socket.connected = false;
-							debugPrint("Socket closed");
+							debug_print("Socket closed");
 						}
 						// event.wasClean, event.code, event.reason
 					}
 			
 					newSocket.onmessage = function(event) {
-						handleMessage(event.data);
+						handle_message(event.data);
 					}
 				}
 			}
@@ -598,26 +654,31 @@ function format_time(seconds) {
 		send: function(message) {
 			if (socket.connected) {
 				var messageStr = JSON.stringify(message);
-				debugPrint("Sending: " + messageStr);
+				debug_print("Sending: " + messageStr);
 
 				socket.sock.send(messageStr);
 			} else {
-				debugPrint("Error: Could not send message, not connected to server.");
+				debug_print("Error: Could not send message, not connected to server.");
 			}
 		}
 	}
-	
+
 	$(document).ready(function() {
+		controller.resize_video();
+	});
+	
+	$(window).load(function() {
 		socket.connect();
 		
 		// Hook up UI.
-		$("#nextVideo").click(function() {
-			socket.send({command: "select_video", item_id: queue.next_video_id()});
+		$("#add_video").click(function() {
+			var url_input = $("#video_url");
+			socket.send({command: "add_video", url: url_input.val()});
+			url_input.val("");
 		});
-		$("#addVideo").click(function() {
-			var urlField = $("#videoURL");
-			socket.send({command: "add_video", url: urlField.val()});
-			urlField.val("");
-		});
+	});
+
+	$(window).smartresize(function() {
+		controller.resize_video();
 	});
 })();

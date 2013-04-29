@@ -30,6 +30,7 @@ if __name__ == "__main__":
 	
 	if args.webserver:
 		webdir = File("../site")
+		webdir.contentTypes[".svg"] = "image/svg+xml"
 		web = Site(webdir)
 		reactor.listenTCP(8080, web)
 	

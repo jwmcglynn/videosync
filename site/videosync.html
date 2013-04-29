@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
 <title>Testing</title>
@@ -7,12 +8,24 @@
 <script type="text/javascript" src="videosync.js"></script>
 </head>
 <body>
-<div id="error"></div>
-<div id="controls">URL: <input id="videoURL"><button id="addVideo">Add</button><button id="nextVideo" disabled="disabled">Next</button></div>
-<div id="playlist"></div>
-<div id="playerContainer"></div>
-<div id="users"></div>
-<ul id="queue"></ul>
-<div id="debugPrintout"></div>
+<div id="container">
+	<div id="wrapper">
+		<div id="content">
+			<div id="player_container"></div>
+			<div id="controls_container">
+				<div id="controls">URL: <input id="video_url"><button id="add_video">Add</button></div>
+			</div>
+			<div id="queue_container">
+				<ul id="queue"></ul>
+			</div>
+		</div>
+	</div>
+	<div id="sidebar">
+		<div id="users"></div>
+	</div>
+</div>
+<div id="footer">
+	<div id="debug_printout"></div>
+</div>
 </body>
 </html>
