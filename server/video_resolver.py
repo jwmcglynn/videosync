@@ -1,42 +1,70 @@
-k_video1 = {"url": u"http://www.youtube.com/watch?v=Qqd9S06lvH0"
-				, "title": u"screaming creepers"
-				, "duration": 28}
-k_video2 = {"url": u"http://www.youtube.com/watch?v=Wl8AK5Ht65Y"
-				, "title": u"Oh Bother..."
-				, "duration": 5}
-k_video3 = {"url": u"http://www.youtube.com/watch?v=3b4nFj7MhK0"
-				, "title": u"Dinosaur Telephone Call"
-				, "duration": 94}
+import urlparse
 
-class VideoInfo:
-	def __init__(self, service, url, title, duration, start_time):
-		self.service = service
-		self.url = url
-		self.title = title
-		self.duration = duration
-		self.start_time = start_time
+from isodate import parse_duration
+from isodate.isoerror import ISO8601Error
 
-def resolve(url, callback):
-	# TODO: A proper implementation of resolve.
-	if url == k_video1["url"]:
-		video_info = VideoInfo(
-			"youtube"
-			, url
-			, k_video1["title"]
-			, k_video1["duration"]
-			, 0)
-	elif url == k_video2["url"]:
-		video_info = VideoInfo(
-			"youtube"
-			, url
-			, k_video2["title"]
-			, k_video2["duration"]
-			, 0)
-	elif url == k_video3["url"]:
-		video_info = VideoInfo(
-			"youtube"
-			, url
-			, k_video3["title"]
-			, k_video3["duration"]
-			, 0)
-	callback(video_info)
+from services.common import UrlError, VideoInfo
+from services.youtube import resolve as youtube_resolve
+
+YOUTUBE_HOSTNAMES = ( "youtu.be", "youtube.com" )
+
+def resolve(url, response_callback, error_callback):
+	parts = urlparse.urlparse(url)
+
+	hostname = parts.hostname
+	path = parts.path
+	query = urlparse.parse_qs(parts.query)
+	fragment = parts.fragment
+
+	if not parts.scheme in ( "", "http", "https" ):
+		raise UrlError("Invalid Url Scheme.")
+
+	if not hostname:
+		raise UrlError("Unable to find hostname.")
+
+	# Discard the www. from the url
+	if hostname[:4] == "www.":
+		hostname = hostname[4:]
+
+	# Youtube url processing
+	if hostname in YOUTUBE_HOSTNAMES:
+		start_time = None
+
+		if path == "/watch":
+			fragment_parts = urlparse.parse_qs(fragment)
+
+			if not "v" in query:
+				raise UrlError("Missing videoID.")
+
+			if "t" in fragment_parts:
+				start_time = fragment_parts["t"]
+
+			videoID = query["v"][0]
+		elif hostname == "youtu.be":
+			# First character of path is /
+			videoID = path[:1] # TODO - Validate this to make sure its a valid videoID
+
+			if videoID == "":
+				raise UrlError("Missing videoID.")
+
+			if "t" in query:
+				start_time = query["t"]
+
+		query = "v=" + videoID
+		fragment = ""
+		if start_time:
+			try:
+				start_time = parse_duration("PT" + string.upper(start_time))
+				fragment = "t=" + start_time
+			except ISO8601Error:
+				start_time = 0
+		else:
+			start_time = 0
+
+		url = urlparse.urlunparse(( "http", "youtube.com", "/watch", "", query, fragment ))
+
+		video_info = VideoInfo(u"youtube", url, videoID, None, None, start_time)
+
+		youtube_resolve(video_info, response_callback, error_callback)
+	else:
+		raise UrlError("Unsupported site.")

@@ -2,6 +2,9 @@ import models.room as room_model
 import video_resolver
 import itertools
 
+from services.common import UrlError
+from services.youtube import VideoError
+
 active_rooms = dict()
 NoSuchRoomException = room_model.NoSuchRoomException
 
@@ -53,7 +56,7 @@ class RoomController:
 					raise CommandError("Unknown command.")
 			except KeyError:
 				raise CommandError("Protocol error.")
-		except CommandError, error:
+		except (CommandError, UrlError), error:
 			if "command" in message:
 				context = message["command"]
 			else:
@@ -89,9 +92,17 @@ class RoomController:
 				, "username": user_session.username})
 
 	def process_add_video(self, user_session, message):
+
+		def on_video_resolve_error(error):
+			if type(error.value) == VideoError:
+				user_session.send(
+						{"command": "command_error"
+							, "context": "add_video"
+							, "reason": error.value.message})
+
 		video_resolver.resolve(
 			message["url"]
-			, self.on_video_resolved)
+			, self.on_video_resolved, on_video_resolve_error)
 
 	def process_give_moderator(self, user_session, message):
 		new_moderator = self.lookup_user(message["username"])

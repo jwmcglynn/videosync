@@ -1,3 +1,5 @@
+from nose.twistedtools import threaded_reactor
+
 from room_controller import RoomController
 from models.user import User
 from models.room import Room
@@ -11,19 +13,19 @@ from nose.tools import *
 k_database = "test_db.sqlitedb"
 
 k_video1 = {"service": u"youtube"
-				, "url": u"http://www.youtube.com/watch?v=Qqd9S06lvH0"
+				, "url": u"http://youtube.com/watch?v=Qqd9S06lvH0"
 				, "title": u"screaming creepers"
 				, "item_id": 1
 				, "duration": 28
 				, "start_time": 0}
 k_video2 = {"service": u"youtube"
-				, "url": u"http://www.youtube.com/watch?v=Wl8AK5Ht65Y"
+				, "url": u"http://youtube.com/watch?v=Wl8AK5Ht65Y"
 				, "title": u"Oh Bother..."
 				, "item_id": 2
 				, "duration": 5
 				, "start_time": 0}
 k_video3 = {"service": u"youtube"
-				, "url": u"http://www.youtube.com/watch?v=3b4nFj7MhK0"
+				, "url": u"http://youtube.com/watch?v=3b4nFj7MhK0"
 				, "title": u"Dinosaur Telephone Call"
 				, "item_id": 3
 				, "duration": 94
@@ -86,6 +88,8 @@ class TestRoomController:
 		system = User(0)
 		self.room_id = Room.create("Test Room", system)
 		self.room_controller = RoomController(self.room_id)
+
+		threaded_reactor()
 
 	def teardown(self):
 		database.close()

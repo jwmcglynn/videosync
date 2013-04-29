@@ -7,6 +7,8 @@ Setup
 `pip install autobahn`    
 `pip install passlib`    
 `pip install nose`    
+`pip install google-api-python-client`
+`pip install isodate`
 
 **WARNING: This will delete the previous database.**    
 `python database_create.py -y`
