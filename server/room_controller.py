@@ -119,7 +119,7 @@ class RoomController:
 				, "state": message["state"]})
 
 	def process_select_video(self, user_session, message):
-		video = self.lookup_video(message["item_id"])
+		video = self.lookup_video(int(message["item_id"]))
 		if video is None:
 			raise CommandError("Video not found.")
 
@@ -131,7 +131,7 @@ class RoomController:
 				, "video": self.serialize_video(video)})
 
 	def process_move_video(self, user_session, message):
-		video = self.lookup_video(message["item_id"])
+		video = self.lookup_video(int(message["item_id"]))
 		if video is None:
 			raise CommandError("Video not found.")
 
@@ -166,7 +166,7 @@ class RoomController:
 				, "index": message["index"]})
 
 	def process_remove_video(self, user_session, message):
-		video = self.lookup_video(message["item_id"])
+		video = self.lookup_video(int(message["item_id"]))
 		if video is None:
 			raise CommandError("Video not found.")
 

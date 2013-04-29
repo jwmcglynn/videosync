@@ -1,13 +1,13 @@
 var k_sync_threshold = 1.0;
 
 String.prototype.format = function() {
-    var s = this;
-    var i = arguments.length;
+	var s = this;
+	var i = arguments.length;
 
-    while (i--) {
-        s = s.replace(new RegExp('\\{' + i + '\\}', 'gm'), arguments[i]);
-    }
-    return s;
+	while (i--) {
+		s = s.replace(new RegExp('\\{' + i + '\\}', 'gm'), arguments[i]);
+	}
+	return s;
 };
 
 function query_variable(url, name) {
@@ -16,14 +16,32 @@ function query_variable(url, name) {
 
 	var query = parser.search.substring(1);
 	var vars = query.split("&");
-    for (var i = 0; i < vars.length; i++) {
-        var pair = vars[i].split("=");
-        if (decodeURIComponent(pair[0]) == name) {
-            return decodeURIComponent(pair[1]);
-        }
-    }
+	for (var i = 0; i < vars.length; i++) {
+		var pair = vars[i].split("=");
+		if (decodeURIComponent(pair[0]) == name) {
+			return decodeURIComponent(pair[1]);
+		}
+	}
 
-    return null;
+	return null;
+}
+
+function format_time(seconds) {
+	var hours = Math.floor(seconds / 3600);
+	seconds -= hours * 3600;
+	var minutes = Math.floor(seconds / 60);
+	seconds -= minutes * 60;
+
+	function prefix(num) {
+		if (num < 10) return "0" + num;
+		else return num;
+	}
+
+	if (hours) {
+		return "{0}:{1}:{2}".format(hours, prefix(minutes), prefix(seconds));
+	} else {
+		return "{0}:{1}".format(minutes, prefix(seconds));
+	}
 }
 
 (function() {
@@ -73,7 +91,7 @@ function query_variable(url, name) {
 			} else if (message.command == "user_disconnect") {
 				users.remove(message.username);
 			} else if (message.command == "set_moderator") {
-				users.set_moderator(message.username);
+				users.set_moderator_name(message.username);
 				controller.set_moderator(controller.username == message.username);
 			} else if (message.command == "change_video") {
 				queue.active_video(message.video);
@@ -86,9 +104,9 @@ function query_variable(url, name) {
 				}
 			} else if (message.command == "add_queue_video") {
 				queue.add(message.video);
-			} else if (message.command == "move_queue_video") {
+			} else if (message.command == "move_queue_video" && !controller.is_moderator) {
 				queue.move(message.item_id, message.index);
-			} else if (message.command == "remove_queue_video") {
+			} else if (message.command == "remove_queue_video" && !controller.is_moderator) {
 				queue.remove(message.item_id);
 			} else if (message.command == "command_error") {
 				// TODO
@@ -113,7 +131,7 @@ function query_variable(url, name) {
 		},
 
 		remove: function(username) {
-			var index = users.data.indexOf(old_username);
+			var index = users.data.indexOf(username);
 			if (index != -1) {
 				users.data.splice(index, 1);
 			} else {
@@ -134,7 +152,7 @@ function query_variable(url, name) {
 			users.update_ui();
 		},
 
-		set_moderator: function(username) {
+		set_moderator_name: function(username) {
 			users.moderator = username;
 		},
 
@@ -147,11 +165,28 @@ function query_variable(url, name) {
 	var queue = {
 		data: [],
 		current_index: [],
+		html_entities: [],
 
 		initialize: function(initial_queue) {
-			// TODO: Update UI.
-			queue.data = initial_queue;
-			queue.update_ui();
+			for (var i = 0; i < initial_queue.length; ++i) {
+				queue.add(initial_queue[i]);
+			}
+		},
+
+		update_moderator: function() {
+			if (controller.is_moderator) {
+				$("#queue").sortable({
+					update: function(e, ui) {
+						socket.send(
+							{command: "move_video"
+							, item_id: ui.item.attr("item_id")
+							, index: ui.item.index()});
+					}
+				});
+				$("#queue").disableSelection();
+			} else {
+				$("#queue").sortable("cancel");
+			}
 		},
 
 		active_video: function(video) {
@@ -181,7 +216,18 @@ function query_variable(url, name) {
 
 		add: function(video) {
 			queue.data.push(video);
-			queue.update_ui();
+
+			var $entity = $("<li class='ui-state-default'>");
+			$entity.attr("item_id", video.item_id);
+			$entity.append($("<span class='title'>").text(video.title));
+			$entity.append($("<span class='time'>").text(format_time(video.duration)));
+			// TODO: Remove button.
+
+			queue.html_entities.push($entity);
+			$("#queue").append($entity);
+			if (controller.is_moderator) {
+				$("#queue").sortable("refresh");
+			}
 		},
 
 		remove: function(item_id) {
@@ -195,11 +241,14 @@ function query_variable(url, name) {
 
 			if (index != -1) {
 				queue.data.splice(index, 1);
+				$video = queue.html_entities.splice(index, 1)[0];
+				$video.remove();
+				if (controller.is_moderator) {
+					$("#queue").sortable("refresh");
+				}
 			} else {
 				debugPrint("Error: Could not find video to remove.");
 			}
-
-			queue.update_ui();
 		},
 
 		move: function(item_id, index) {
@@ -212,27 +261,25 @@ function query_variable(url, name) {
 			}
 
 			if (old_index != -1) {
-				var video = queue.data.splice(old_index, 1);
+				var video = queue.data.splice(old_index, 1)[0];
 				queue.data.splice(index, 0, video);
+
+				var $video = queue.html_entities.splice(old_index, 1)[0];
+				queue.html_entities.splice(index, 0, $video);
+				$video.remove();
+
+				if (index == 0) {
+					$("#queue").prepend($video);
+				} else {
+					queue.html_entities[index - 1].after($video);
+				}
+
+				if (controller.is_moderator) {
+					$("#queue").sortable("refresh");
+				}
 			} else {
-				debugPrint("Error: Could not find video to remove.");
+				debugPrint("Error: Could not find video to move.");
 			}
-
-			queue.update_ui();
-		},
-
-		update_ui: function() {
-			var content = [];
-
-			for (var i = 0; i < queue.data.length; ++i) {
-				var name = queue.data[i].title;
-				var duration = queue.data[i].duration;
-
-				content.push("{0} ({1}:{2})".format(htmlEncode(name), Math.round(duration / 60), Math.round(duration % 60)));
-			}
-
-			// TODO: Better UI.
-			$("#queue").text("Queue: " + content.join(", "));
 		}
 	};
 
@@ -244,13 +291,16 @@ function query_variable(url, name) {
 		current_player: null,
 
 		set_moderator: function(value) {
+			var was_moderator = controller.is_moderator;
 			controller.is_moderator = value;
 			if (controller.is_moderator) {
-				debugPrint("SetModerator");
 				$("#nextVideo").removeAttr("disabled");
 			} else {
-				debugPrint("UnsetModerator");
 				$("#nextVideo").attr("disabled", "disabled");
+			}
+
+			if (was_moderator != controller.is_moderator) {
+				queue.update_moderator();
 			}
 		},
 
@@ -272,12 +322,10 @@ function query_variable(url, name) {
 		},
 
 		play: function(seconds) {
-			debugPrint("controller.play()");
 			youtube.play(seconds);
 		},
 
 		pause: function(seconds) {
-			debugPrint("controller.pause()");
 			youtube.pause(seconds);
 		},
 
@@ -397,14 +445,12 @@ function query_variable(url, name) {
 		play: function(seconds) {
 			if (youtube.playerReady) {
 				if (youtube.lastVideoState == videoStates.PLAYING) {
-					debugPrint("PlayVideo");
 					youtube.sync_with_time(seconds);
 				} else {
 					if (seconds != 0) {
 						youtube.seek(seconds);
 					}
 
-					debugPrint("PlayVideo");
 					if (youtube.player.playVideo) {
 						youtube.player.playVideo();
 					}
