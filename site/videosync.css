@@ -116,6 +116,13 @@ body {
 	margin-right: 6pt;
 }
 
+#guest_name_change {
+	display: none;
+}
+
+#guest_name_change input {
+	width: 100px;
+}
 
 #users {
 	margin: 3px;

@@ -1,9 +1,16 @@
 import models.room as room_model
 import video_resolver
 import itertools
+import unicodedata
 
 from services.common import UrlError
 from services.youtube import VideoError
+
+def filter_non_printable(s):
+	# Strip unwanted characters: http://en.wikipedia.org/wiki/Mapping_of_Unicode_characters
+	PRINTABLE = set(("Lu", "Ll", "Nd", "Pc", "Zs"))
+	result = filter(lambda x: unicodedata.category(x) in PRINTABLE, s)
+	return u"".join(result)
 
 active_rooms = dict()
 NoSuchRoomException = room_model.NoSuchRoomException
@@ -73,18 +80,25 @@ class RoomController:
 	def process_guest_username(self, user_session, message):
 		if not user_session.is_guest or user_session.has_changed_username:
 			raise CommandError("Cannot change username.")
-		if "*" in message["username"]:
+
+		username = filter_non_printable(message["username"])
+		if "*" in username:
 			raise CommandError("Usernames cannot contain asterisks.")
-		elif len(message["username"]) > 30:
+		elif len(username) == 0:
+			if len(message["username"]) == 0:
+				raise CommandError("Username too short.")
+			else:
+				raise CommandError("Username doesn't contain any printable characters!")
+		elif len(username) > 30:
 			raise CommandError("Username too long.  The maximum length is 30 characters.")
 		
 		# Check to see if there any duplicate usernames.
-		guest_username = "*%s*" % message["username"]
-		if message["username"] in self.__user_lookup or guest_username in self.__user_lookup:
+		guest_username = "*%s*" % username
+		if username in self.__user_lookup or guest_username in self.__user_lookup:
 			raise CommandError("Username already in use.")
 
 		old_username = user_session.username
-		user_session.change_username(message["username"])
+		user_session.change_username(username)
 
 		del self.__user_lookup[old_username]
 		self.__user_lookup[user_session.username] = user_session

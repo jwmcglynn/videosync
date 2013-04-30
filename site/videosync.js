@@ -12,6 +12,10 @@ function lnb() {
 	$("body").css("font-family", "'Comic Sans MS', cursive");
 }
 
+function debug() {
+	$("#debug").show();
+}
+
 (function($, sr) {
 	// debouncing function from John Hann
 	// http://unscriptable.com/index.php/2009/03/20/debouncing-javascript-methods/
@@ -112,14 +116,16 @@ function lnb() {
 
 		if (message.command) {
 			if (message.command == "room_joined") {
-				controller.connected = true;
-				controller.username = message.username;
+				controller.room_joined(message.username);
 			} else if (message.command == "initial_users") {
 				users.initialize(message.users);
 			} else if (message.command == "initial_queue") {
 				queue.initialize(message.queue);
 			} else if (message.command == "guest_username_changed") {
 				users.rename(message.old_username, message.username);
+				if (controller.username == message.old_username) {
+					controller.username = message.username;
+				}
 			} else if (message.command == "user_connect") {
 				users.add(message.username);
 			} else if (message.command == "user_disconnect") {
@@ -150,8 +156,6 @@ function lnb() {
 	}
 
 	var users = {
-		data: [],
-		html_entities: [],
 		moderator: null,
 
 		initialize: function(initial_users) {
@@ -160,15 +164,23 @@ function lnb() {
 			}
 		},
 
-		add: function(username) {
-			users.data.push(username);
+		from_username: function(username) {
+			var $result = $("#users").find("[data-username='{0}']".format(username));
+			if ($result.length) return $($result[0]);
+			else return null;
+		},
 
+		add: function(username) {
 			var $entity = $("<li class='ui-state-default'>");
+			$entity.attr("data-username", username);
+
 			var $moderator_tag = $("<span class='moderator_tag'>").html("<img src='play.svg' width='20' height='20'>");
 			$entity.append($moderator_tag);
+
 			$username = $("<span class='username'>");
 			users.format_username($username, username);
 			$entity.append($username);
+
 			var $make_moderator = $("<span class='make_moderator moderator_controls'>").html("<img src='play.svg' width='20' height='20'>").hide();
 			$entity.append($make_moderator);
 
@@ -192,30 +204,27 @@ function lnb() {
 					if (controller.is_moderator) {
 						socket.send(
 								{command: "give_moderator"
-								, username: $entity.find(".username").text()});
+								, username: $entity.attr("data-username")});
 					}
 				});
 
-			users.html_entities.push($entity);
 			$("#users").append($entity);
 		},
 
 		remove: function(username) {
-			var index = users.data.indexOf(username);
-			if (index != -1) {
-				users.data.splice(index, 1);
-				var $user = users.html_entities.splice(index, 1)[0];
-				$user.remove();
+			var $entity = users.from_username(username);
+			if ($entity) {
+				$entity.remove();
 			} else {
 				debug_print("Error: Could not find user to remove.");
 			}
 		},
 
-		rename_user: function(old_username, username) {
-			var index = users.data.indexOf(old_username);
-			if (index != -1) {
-				users.data[index] = username;
-				users.format_username(users.html_entities[index].find(".username"), username);
+		rename: function(old_username, username) {
+			var $entity = users.from_username(old_username);
+			if ($entity) {
+				$entity.attr("data-username", username);
+				users.format_username($entity.find(".username"), username);
 			} else {
 				debug_print("Error: Could not find user to rename.");
 			}
@@ -239,16 +248,12 @@ function lnb() {
 			}
 
 			if (users.moderator) {
-				var old_index = users.data.indexOf(users.moderator);
-				if (old_index != -1) {
-					users.html_entities[old_index].removeClass("moderator");
-				}
+				users.moderator.removeClass("moderator");
 			}
 
-			users.moderator = username;
-			var index = users.data.indexOf(users.moderator);
-			if (index != -1) {
-				users.html_entities[index].addClass("moderator");
+			users.moderator = users.from_username(username);
+			if (users.moderator) {
+				users.moderator.addClass("moderator");
 			}
 		}
 	};
@@ -271,7 +276,7 @@ function lnb() {
 		},
 
 		from_item_id: function(item_id) {
-			var $result = $("#queue").find("[item_id='{0}']".format(item_id));
+			var $result = $("#queue").find("[data-item_id='{0}']".format(item_id));
 			if ($result.length) return $($result[0]);
 			else return null;
 		},
@@ -285,7 +290,7 @@ function lnb() {
 					update: function(e, ui) {
 						socket.send(
 							{command: "move_video"
-							, item_id: ui.item.attr("item_id")
+							, item_id: ui.item.attr("data-item_id")
 							, index: ui.item.index()});
 					}
 				});
@@ -317,12 +322,12 @@ function lnb() {
 				next_index = 0;
 			}
 
-			return $children.eq(next_index).attr("item_id");
+			return $children.eq(next_index).attr("data-item_id");
 		},
 
 		add: function(video) {
 			var $entity = $("<li class='ui-state-default'>");
-			$entity.attr("item_id", video.item_id);
+			$entity.attr("data-item_id", video.item_id);
 			var $play_button = $("<span class='play moderator_controls'>").html("<img src='play.svg' width='20' height='20'>").css("opacity", 0);
 			$entity.append($play_button);
 			$entity.append($("<span class='title'>").append($("<a>").text(video.title).attr({href: video.url, target: "_blank"})));
@@ -409,6 +414,15 @@ function lnb() {
 		username: null,
 
 		current_player: null,
+
+		room_joined: function(username) {
+			controller.connected = true;
+			controller.username = username;
+
+			if (username.length && username[0] == "*") {
+				$("#guest_name_change").show();
+			}
+		},
 
 		set_moderator: function(value) {
 			var was_moderator = controller.is_moderator;
@@ -628,8 +642,8 @@ function lnb() {
 		
 		pause: function(seconds) {
 			if (youtube.playerReady) {
-				youtube.player.pauseVideo();
 				youtube.seek(seconds);
+				youtube.player.pauseVideo();
 			}
 		},
 		
@@ -735,20 +749,34 @@ function lnb() {
 	
 	$(window).load(function() {
 		socket.connect();
-		
+
 		// Hook up UI.
-		$("#add_video").click(function() {
-			var url_input = $("#video_url");
-			socket.send({command: "add_video", url: url_input.val()});
-			url_input.val("");
+		var add_video = function() {
+			var input = $("#video_url");
+			socket.send({command: "add_video", url: input.val()});
+			input.val("");
+		}
+		
+		$("#add_video").click(add_video);
+		$("#video_url").keydown(function(e) {
+			if (e.keyCode == 13) {
+				e.preventDefault();
+				add_video();
+			}
 		});
 
-		$("#video_url").keydown(function (e) {
+		var change_username = function() {
+			var input = $("#username");
+			socket.send({command: "guest_username", username: input.val()});
+			input.val("");
+			$("#guest_name_change").hide()
+		}
+
+		$("#change_name").click(change_username);
+		$("#username").keydown(function(e) {
 			if (e.keyCode == 13) {
-				var url_input = $(e.target)
 				e.preventDefault();
-				socket.send({command: "add_video", url: url_input.val()});
-				url_input.val("");
+				change_username();
 			}
 		});
 	});
