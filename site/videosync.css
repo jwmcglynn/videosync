@@ -31,13 +31,8 @@ body {
 #sidebar {
 	float: right;
 	width: 250px;
-	background-color: #333;
 	height: 100%;
 	overflow: auto;
-}
-
-#users {
-	margin: 5px;
 }
 
 #footer {
@@ -62,7 +57,7 @@ body {
 	padding: 3px;
 }
 
-#queue_container {
+#bottom {
 	overflow: auto;
 	height: 300px;
 }
@@ -119,4 +114,65 @@ body {
 #queue li .remove {
 	float: right;
 	margin-right: 6pt;
+}
+
+
+#users {
+	margin: 3px;
+	padding: 0;
+}
+
+#users li {
+	font-size: 14px;
+	height: 20px;
+	padding: 6px;
+	margin: 0;
+	margin-bottom: 2px;
+	list-style: none;
+	background-color: #000;
+}
+
+#users li a {
+	color: #FFF;
+	text-decoration: none;
+}
+
+#users li a:hover {
+	color: #DDD;
+}
+
+#users.moderator .moderator_controls {
+	cursor: pointer;
+}
+
+#users li.hover {
+	background-color: #222;
+}
+
+#users li .moderator_tag {
+	float: left;
+	margin-right: 6pt;
+	visibility: hidden;
+}
+
+#users li.moderator .moderator_tag {
+	visibility: visible;
+}
+
+#users li .username {
+	float: left;
+}
+
+#users li.self {
+	background-color: #222;
+	font-weight: bold;
+}
+
+#users li .make_moderator {
+	float: right;
+	margin-right: 6pt;
+}
+
+#users li.moderator .moderator_controls {
+	display: none !important;
 }

@@ -48,7 +48,7 @@ String.prototype.format = function() {
 
 	var SYNC_THRESHOLD = 1.0;
 	var ASPECT_RATIO = 640.0 / 390.0;
-	var MINIMUM_QUEUE_HEIGHT = 200.0;
+	var MINIMUM_BOTTOM_HEIGHT = 200.0;
 	var MINIMUM_WIDTH = 320;
 	
 	function html_encode(text) {
@@ -121,8 +121,8 @@ String.prototype.format = function() {
 			} else if (message.command == "user_disconnect") {
 				users.remove(message.username);
 			} else if (message.command == "set_moderator") {
-				users.set_moderator_name(message.username);
 				controller.set_moderator(controller.username == message.username);
+				users.set_moderator_name(message.username);
 			} else if (message.command == "change_video") {
 				queue.active_video(message.video);
 				controller.change_video(message.video);
@@ -147,48 +147,94 @@ String.prototype.format = function() {
 
 	var users = {
 		data: [],
+		html_entities: [],
 		moderator: null,
 
 		initialize: function(initial_users) {
-			// TODO: Update UI.
-			users.data = initial_users;
-			users.update_ui();
+			for (var i = 0; i < initial_users.length; ++i) {
+				users.add(initial_users[i]);
+			}
 		},
 
 		add: function(username) {
 			users.data.push(username);
-			users.update_ui();
+
+			var $entity = $("<li class='ui-state-default'>");
+			var $moderator_tag = $("<span class='moderator_tag'>").html("<img src='play.svg' width='20' height='20'>");
+			$entity.append($moderator_tag);
+			$entity.append($("<span class='username'>").text(username));
+			var $make_moderator = $("<span class='make_moderator moderator_controls'>").html("<img src='play.svg' width='20' height='20'>").hide();
+			$entity.append($make_moderator);
+
+			if (controller.username == username) {
+				$entity.addClass("self");
+			}
+
+			$entity.hover(
+				function() {
+					if (controller.is_moderator) {
+						$(this).switchClass("", "hover", 200);
+						$(this).find(".moderator_controls").fadeTo(200, 1);
+					}
+				},
+				function() {
+					$(this).switchClass("hover", "", 200);
+					$(this).find(".moderator_controls").fadeTo(200, 0);
+				});
+			$make_moderator.click(
+				function() {
+					if (controller.is_moderator) {
+						socket.send(
+								{command: "give_moderator"
+								, username: $entity.find(".username").text()});
+					}
+				});
+
+			users.html_entities.push($entity);
+			$("#users").append($entity);
 		},
 
 		remove: function(username) {
 			var index = users.data.indexOf(username);
 			if (index != -1) {
 				users.data.splice(index, 1);
+				var $user = users.html_entities.splice(index, 1)[0];
+				$user.remove();
 			} else {
 				debug_print("Error: Could not find user to remove.");
 			}
-
-			users.update_ui();
 		},
 
 		rename_user: function(old_username, username) {
 			var index = users.data.indexOf(old_username);
 			if (index != -1) {
 				users.data[index] = username;
+				users.html_entities[index].find(".username").text(username);
 			} else {
 				debug_print("Error: Could not find user to rename.");
 			}
-
-			users.update_ui();
 		},
 
 		set_moderator_name: function(username) {
-			users.moderator = username;
-		},
+			var $users = $("#users");
+			if (controller.is_moderator) {
+				$users.addClass("moderator");
+			} else {
+				$users.removeClass("moderator");
+			}
 
-		update_ui: function() {
-			// TODO: Better UI.
-			$("#users").text("Users: " + users.data.join(", "));
+			if (users.moderator) {
+				var old_index = users.data.indexOf(users.moderator);
+				if (old_index != -1) {
+					users.html_entities[old_index].removeClass("moderator");
+				}
+			}
+
+			users.moderator = username;
+			var index = users.data.indexOf(users.moderator);
+			if (index != -1) {
+				users.html_entities[index].addClass("moderator");
+			}
 		}
 	};
 
@@ -273,7 +319,7 @@ String.prototype.format = function() {
 						$(this).find(".moderator_controls").fadeTo(200, 1);
 					}
 				},
-				function () {
+				function() {
 					$(this).switchClass("hover", "", 200);
 					$(this).find(".moderator_controls").fadeTo(200, 0);
 				});
@@ -410,7 +456,7 @@ String.prototype.format = function() {
 		},
 
 		resize_video: function() {
-			var $queue = $("#queue_container");
+			var $bottom = $("#bottom");
 			var $controls = $("#controls_container");
 
 			var width = $(window).width() - $("#sidebar").outerWidth();
@@ -419,12 +465,12 @@ String.prototype.format = function() {
 			}
 
 			var height = width / ASPECT_RATIO;
-			if ($(window).height() - height < MINIMUM_QUEUE_HEIGHT + $controls.outerHeight()) {
-				height = $(window).height() - MINIMUM_QUEUE_HEIGHT - $controls.outerHeight();
+			if ($(window).height() - height < MINIMUM_BOTTOM_HEIGHT + $controls.outerHeight()) {
+				height = $(window).height() - MINIMUM_BOTTOM_HEIGHT - $controls.outerHeight();
 				width = height * ASPECT_RATIO;
 			}
 
-			$queue.height($(window).height() - height - $controls.outerHeight());
+			$bottom.height($(window).height() - height - $controls.outerHeight());
 			$("#player_container").height(height);
 
 			if (controller.current_player) {
