@@ -163,6 +163,10 @@ body {
 	float: left;
 }
 
+#users .guest {
+	font-style: italic;
+}
+
 #users li.self {
 	background-color: #222;
 	font-weight: bold;

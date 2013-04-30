@@ -166,7 +166,9 @@ function lnb() {
 			var $entity = $("<li class='ui-state-default'>");
 			var $moderator_tag = $("<span class='moderator_tag'>").html("<img src='play.svg' width='20' height='20'>");
 			$entity.append($moderator_tag);
-			$entity.append($("<span class='username'>").text(username));
+			$username = $("<span class='username'>");
+			users.format_username($username, username);
+			$entity.append($username);
 			var $make_moderator = $("<span class='make_moderator moderator_controls'>").html("<img src='play.svg' width='20' height='20'>").hide();
 			$entity.append($make_moderator);
 
@@ -213,9 +215,18 @@ function lnb() {
 			var index = users.data.indexOf(old_username);
 			if (index != -1) {
 				users.data[index] = username;
-				users.html_entities[index].find(".username").text(username);
+				users.format_username(users.html_entities[index].find(".username"), username);
 			} else {
 				debug_print("Error: Could not find user to rename.");
+			}
+		},
+
+		format_username: function($entity, username) {
+			if (username.length > 2 && username[0] == "*") {
+				$entity.text(username.substring(1, username.length - 1));
+				$entity.addClass("guest");
+			} else {
+				$entity.text(username);
 			}
 		},
 
