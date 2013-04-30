@@ -179,23 +179,23 @@ class RoomController:
 		self.__queue.remove(video)
 		video.remove()
 
+		self.broadcast(
+			{"command": "remove_queue_video"
+				, "item_id": message["item_id"]})
+
 		if video.item_id == self.__current_video.item_id:
 			if len(self.__queue) > 0:
 				new_index = removed_index
 				if new_index == len(self.__queue):
 					new_index -= 1
 				self.__current_video = self.__queue[new_index]
+
+				self.broadcast(
+					{"command": "change_video"
+						, "video": self.serialize_video(self.__current_video)})
 			else:
 				self.__current_video = None
 			self.__current_video_time = 0.0
-
-			self.broadcast(
-				{"command": "change_video"
-					, "video": self.serialize_video(self.__current_video)})
-
-		self.broadcast(
-			{"command": "remove_queue_video"
-				, "item_id": message["item_id"]})
 
 	#### Broadcasting.
 	def broadcast(self, message):

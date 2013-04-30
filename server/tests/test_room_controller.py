@@ -1,4 +1,5 @@
-from nose.twistedtools import threaded_reactor
+from nose.twistedtools import threaded_reactor, reactor, deferred
+from twisted.internet import defer
 
 from room_controller import RoomController
 from models.user import User
@@ -51,14 +52,23 @@ class MockUserSessionBase(object):
 		if self.waiting_count > 0 and self.waiting_count == len(self.messages):
 			self.waiting_event.set()
 
+	@deferred(5.0)
 	def wait_message_count(self, count):
+		d = defer.Deferred()
+
 		if count != len(self.messages):
 			self.waiting_event.clear()
 			self.waiting_count = count
 
-			if not self.waiting_event.wait(5.0):
-				raise AsyncTimeout
-			self.waiting_count = 0
+			def thread():
+				self.waiting_event.wait()
+				self.waiting_count = 0
+				d.callback(None)
+			t = threading.Thread(target=thread)
+			t.start()
+		else:
+			d.callback(None)
+		return d
 
 class MockUserSession(MockUserSessionBase):
 	def __init__(self, username):
@@ -83,7 +93,7 @@ class MockGuestUserSession(MockUserSessionBase):
 	def username(self):
 		return "*%s*" % self.raw_username
 
-class TestRoomController:
+class TestRoomController():
 	@classmethod
 	def setup_class(cls):
 		threaded_reactor()
@@ -100,7 +110,7 @@ class TestRoomController:
 		database.close()
 		os.unlink(k_database)
 
-	def validate_video_queue(self, queue):
+	def validate_video_queue(self, queue, selected_video):
 		## Same room.
 		user = MockUserSession("ValidationUser")
 		self.room_controller.user_connect(user)
@@ -110,7 +120,7 @@ class TestRoomController:
 			, {"command": "set_moderator", "username": "TestUser1"}
 			, {"command": "initial_queue", "queue": queue}]
 		if len(queue) > 0:
-			expected_response.append({"command": "change_video", "video": queue[0]})
+			expected_response.append({"command": "change_video", "video": selected_video})
 
 		assert_equal(expected_response, user.messages)
 		user.messages = []
@@ -177,9 +187,9 @@ class TestRoomController:
 		self.room_controller.user_connect(test_user)
 		assert_equal(
 			[{"command": "room_joined", "username": "*TestGuestUser*"}
- 				, {"command": "initial_users", "users": ["*TestGuestUser*"]}
- 				, {"command": "set_moderator", "username": "*TestGuestUser*"}
- 				, {"command": "initial_queue", "queue": []}]
+				, {"command": "initial_users", "users": ["*TestGuestUser*"]}
+				, {"command": "set_moderator", "username": "*TestGuestUser*"}
+				, {"command": "initial_queue", "queue": []}]
 			, test_user.messages)
 
 		## Validate username change.
@@ -363,7 +373,7 @@ class TestRoomController:
 				, "item_id": k_video1["item_id"]
 				, "index": 2}]
 			, user1.messages)
-		self.validate_video_queue([k_video2, k_video3, k_video1])
+		self.validate_video_queue([k_video2, k_video3, k_video1], k_video1)
 		user1.messages = []
 
 		# Move video3 to the beginning.
@@ -377,7 +387,7 @@ class TestRoomController:
 				, "item_id": k_video3["item_id"]
 				, "index": 0}]
 			, user1.messages)
-		self.validate_video_queue([k_video3, k_video2, k_video1])
+		self.validate_video_queue([k_video3, k_video2, k_video1], k_video1)
 		user1.messages = []
 
 		# Try moving video out of range.
@@ -404,7 +414,7 @@ class TestRoomController:
 				, "item_id": k_video3["item_id"]
 				, "index": 1}]
 			, user1.messages)
-		self.validate_video_queue([k_video2, k_video3, k_video1])
+		self.validate_video_queue([k_video2, k_video3, k_video1], k_video1)
 		user1.messages = []
 
 		# Move video1 from end to the center.
@@ -418,7 +428,7 @@ class TestRoomController:
 				, "item_id": k_video1["item_id"]
 				, "index": 1}]
 			, user1.messages)
-		self.validate_video_queue([k_video2, k_video1, k_video3])
+		self.validate_video_queue([k_video2, k_video1, k_video3], k_video1)
 		user1.messages = []
 
 		## Removing videos.
@@ -429,9 +439,11 @@ class TestRoomController:
 				, "item_id": k_video1["item_id"]})
 		assert_equal(
 			[{"command": "remove_queue_video"
-				, "item_id": k_video1["item_id"]}]
+				, "item_id": k_video1["item_id"]}
+			, {"command": "change_video"
+				, "video": k_video3}]
 			, user1.messages)
-		self.validate_video_queue([k_video2, k_video3])
+		self.validate_video_queue([k_video2, k_video3], k_video3)
 		user1.messages = []
 
 		# Remove a video that is no longer present, expect error.
@@ -455,7 +467,7 @@ class TestRoomController:
 			[{"command": "remove_queue_video"
 				, "item_id": k_video2["item_id"]}]
 			, user1.messages)
-		self.validate_video_queue([k_video3])
+		self.validate_video_queue([k_video3], k_video3)
 		user1.messages = []
 
 		# Remove video3.
@@ -467,5 +479,5 @@ class TestRoomController:
 			[{"command": "remove_queue_video"
 				, "item_id": k_video3["item_id"]}]
 			, user1.messages)
-		self.validate_video_queue([])
+		self.validate_video_queue([], None)
 		user1.messages = []

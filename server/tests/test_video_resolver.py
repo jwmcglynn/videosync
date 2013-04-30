@@ -29,15 +29,8 @@ k_video3 = {"service": u"youtube"
 			, "start_time": 0}
 
 class TestVideoResolver:
-	@classmethod
-	def setup_class(cls):
-		threaded_reactor()
-
 	def setup(self):
-		pass
-
-	def teardown(self):
-		pass
+		threaded_reactor()
 
 	def convert_video_info(self, video_info):
 		return {
