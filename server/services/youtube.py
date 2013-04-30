@@ -40,7 +40,7 @@ class YoutubeResponseHandler(ResponseHandler):
 		else:
 			self.finished.errback(VideoError("Unable to find youtube video info."))
 
-def resolve(video_info, response_callback, error_callback):
+def resolve(video_info):
 	request = __youtube.videos().list(id=video_info.uid, part="snippet,contentDetails,status")
 
 	headers = convert_headers(request.headers)
@@ -53,7 +53,8 @@ def resolve(video_info, response_callback, error_callback):
 
 	handler = YoutubeResponseHandler(video_info)
 	d.addCallbacks(handler.response_callback, handler.error_callback)
-	d.addCallbacks(response_callback, error_callback)
+
+	return d
 
 def handle_error(failure):
 	print type(failure.value), failure

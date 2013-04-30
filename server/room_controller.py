@@ -99,9 +99,9 @@ class RoomController:
 							, "context": "add_video"
 							, "reason": error.value.message})
 
-		video_resolver.resolve(
-			message["url"]
-			, self.on_video_resolved, on_video_resolve_error)
+		d = video_resolver.resolve(message["url"])
+
+		d.addCallbacks(self.on_video_resolved, on_video_resolve_error)
 
 	def process_give_moderator(self, user_session, message):
 		new_moderator = self.lookup_user(message["username"])

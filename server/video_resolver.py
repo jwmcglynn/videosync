@@ -8,7 +8,7 @@ from services.youtube import resolve as youtube_resolve
 
 YOUTUBE_HOSTNAMES = ( "youtu.be", "youtube.com" )
 
-def resolve(url, response_callback, error_callback):
+def resolve(url):
 	parts = urlparse.urlparse(url)
 
 	hostname = parts.hostname
@@ -28,34 +28,34 @@ def resolve(url, response_callback, error_callback):
 
 	# Youtube url processing
 	if hostname in YOUTUBE_HOSTNAMES:
-		start_time = None
+		start_time_str = None
 
 		if path == "/watch":
 			fragment_parts = urlparse.parse_qs(fragment)
 
 			if not "v" in query:
-				raise UrlError("Missing videoID.")
+				raise UrlError("Unable to find videoID.")
 
 			if "t" in fragment_parts:
-				start_time = fragment_parts["t"]
+				start_time_str = fragment_parts["t"][0]
 
 			videoID = query["v"][0]
 		elif hostname == "youtu.be":
 			# First character of path is /
-			videoID = path[:1] # TODO - Validate this to make sure its a valid videoID
+			videoID = path[1:] # TODO - Validate this to make sure its a valid videoID
 
 			if videoID == "":
-				raise UrlError("Missing videoID.")
+				raise UrlError("Unable to find videoID.")
 
 			if "t" in query:
-				start_time = query["t"]
+				start_time_str = query["t"][0]
 
 		query = "v=" + videoID
 		fragment = ""
-		if start_time:
+		if start_time_str:
 			try:
-				start_time = parse_duration("PT" + string.upper(start_time))
-				fragment = "t=" + start_time
+				start_time = parse_duration("PT" + start_time_str.upper()).seconds
+				fragment = "t=" + start_time_str
 			except ISO8601Error:
 				start_time = 0
 		else:
@@ -65,6 +65,8 @@ def resolve(url, response_callback, error_callback):
 
 		video_info = VideoInfo(u"youtube", url, videoID, None, None, start_time)
 
-		youtube_resolve(video_info, response_callback, error_callback)
+		d = youtube_resolve(video_info)
+
+		return d
 	else:
 		raise UrlError("Unsupported site.")
