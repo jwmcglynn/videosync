@@ -34,6 +34,7 @@ class ResponseHandler(Protocol):
 
 	def error_callback(self, error):
 		print type(error.value), error
+		return VideoError("Unable to find youtube video info.")
 
 	def dataReceived(self, bytes):
 		self.body += bytes
