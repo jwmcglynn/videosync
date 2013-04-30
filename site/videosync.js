@@ -11,12 +11,12 @@ String.prototype.format = function() {
 (function($, sr) {
 	// debouncing function from John Hann
 	// http://unscriptable.com/index.php/2009/03/20/debouncing-javascript-methods/
-	var debounce = function (func, threshold, execAsap) {
+	var debounce = function(func, threshold, execAsap) {
 		var timeout;
 
-		return function debounced () {
+		return function debounced() {
 				var obj = this, args = arguments;
-				function delayed () {
+				function delayed() {
 						if (!execAsap)
 								func.apply(obj, args);
 						timeout = null;
@@ -49,13 +49,14 @@ String.prototype.format = function() {
 	var SYNC_THRESHOLD = 1.0;
 	var ASPECT_RATIO = 640.0 / 390.0;
 	var MINIMUM_QUEUE_HEIGHT = 200.0;
+	var MINIMUM_WIDTH = 320;
 	
 	function html_encode(text) {
 		return $("<div/>").text(text).html();
 	}
 
 	function debug_print(text) {
-		var debugBox = $("#debug_printout");
+		var debugBox = $("#debug");
 		var isAtBottom = (debugBox.prop("scrollHeight") - debugBox.scrollTop() == debugBox.height());
 		debugBox.append(html_encode(text) + "<br>");
 		if (isAtBottom) {
@@ -377,7 +378,9 @@ String.prototype.format = function() {
 		},
 
 		change_video: function(video) {
+			var autoplay = false;
 			if (controller.current_player) {
+				autoplay = controller.current_player.lastVideoState == videoStates.PLAYING;
 				controller.current_player.unload();
 			}
 
@@ -390,7 +393,7 @@ String.prototype.format = function() {
 
 
 			if (controller.current_player) {
-				controller.current_player.load(video);
+				controller.current_player.load(video, autoplay);
 			}
 		},
 
@@ -411,8 +414,8 @@ String.prototype.format = function() {
 			var $controls = $("#controls_container");
 
 			var width = $(window).width() - $("#sidebar").outerWidth();
-			if (width <= 0) {
-				width = 640;
+			if (width <= MINIMUM_WIDTH) {
+				width = MINIMUM_WIDTH;
 			}
 
 			var height = width / ASPECT_RATIO;
@@ -439,9 +442,20 @@ String.prototype.format = function() {
 		progressReporter: null,
 		lastPlaybackPosition: NaN,
 		lastVideoState: videoStates.UNSTARTED,
+		is_autoplay: false,
+		start_time: 0.0,
 		
 		on_player_ready: function(event) {
 			youtube.playerReady = true;
+
+			debug_print("Load video, autoplay = {0}".format(youtube.is_autoplay));
+			if (youtube.is_autoplay) {
+				if (youtube.start_time != 0) {
+					youtube.seek(youtube.start_time);
+				}
+
+				youtube.player.playVideo();
+			}
 		},
 		
 		on_playback_quality_change: function(event) {
@@ -476,6 +490,14 @@ String.prototype.format = function() {
 				state = videoStates.PLAYING;
 			} else if (event.data == YT.PlayerState.ENDED) {
 				state = videoStates.PLAYING;
+
+				if (controller.is_moderator) {
+					socket.send(
+						{command: "select_video"
+						, item_id: queue.next_video_id()});
+				}
+			} else if (event.data == YT.PlayerState.UNSTARTED) {
+				state = is_autoplay ? videoStates.PLAYING : videoStates.PAUSED;
 			}
 
 			if (state != youtube.lastVideoState
@@ -495,14 +517,17 @@ String.prototype.format = function() {
 			
 		},
 		
-		load: function(video) {
+		load: function(video, autoplay) {
+			debug_print("Load video, autoplay = {0}".format(autoplay));
+			youtube.is_autoplay = autoplay;
+			youtube.start_time = video.start_time;
+
 			$container = $("#player_container");
 			$container.append($("<div>", {id: "player"}));
 			youtube.player = new YT.Player("player", {
 				height: $container.height(),
 				width: $container.width(),
 				videoId: query_variable(video.url, "v"),
-				//playerVars: { 'autoplay': 1 },
 				events: {
 					"onReady": youtube.on_player_ready,
 					"onPlaybackQualityChange": youtube.on_playback_quality_change,
