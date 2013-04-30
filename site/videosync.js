@@ -46,7 +46,7 @@ String.prototype.format = function() {
 		ENDED: 4
 	}
 
-	var SYNC_THRESHOLD = 1.0;
+	var SYNC_THRESHOLD = 2.0;
 	var ASPECT_RATIO = 640.0 / 390.0;
 	var MINIMUM_BOTTOM_HEIGHT = 200.0;
 	var MINIMUM_WIDTH = 320;
@@ -572,6 +572,7 @@ String.prototype.format = function() {
 				height: $container.height(),
 				width: $container.height() * ASPECT_RATIO,
 				videoId: query_variable(video.url, "v"),
+				playerVars: {rel: 0},
 				events: {
 					"onReady": youtube.on_player_ready,
 					"onPlaybackQualityChange": youtube.on_playback_quality_change,
@@ -744,6 +745,15 @@ String.prototype.format = function() {
 			var url_input = $("#video_url");
 			socket.send({command: "add_video", url: url_input.val()});
 			url_input.val("");
+		});
+
+		$("#video_url").keydown(function (e) {
+			if (e.keyCode == 13) {
+				var url_input = $(e.target)
+				e.preventDefault();
+				socket.send({command: "add_video", url: url_input.val()});
+				url_input.val("");
+			}
 		});
 	});
 
