@@ -27,9 +27,12 @@ class RoomController:
 		self.__user_lookup = dict()
 		self.__queue = self.__room.video_queue()
 		self.__moderator = None
-		self.__current_video_index = 0
+		self.__current_video = None
 		self.__current_video_time = 0.0
 		self.__video_playing = False
+
+		if len(self.__queue):
+			self.__current_video = self.__queue[0]
 
 	def process_message(self, user_session, message):
 		try:
@@ -111,6 +114,9 @@ class RoomController:
 		self.update_moderator(new_moderator)
 
 	def process_update_video_state(self, user_session, message):
+		self.__video_playing = message["state"] == "playing"
+		self.__current_video_time = float(message["position"])
+
 		self.broadcast_all_but_one(
 			user_session
 			, {"command": "video_state"
@@ -122,7 +128,7 @@ class RoomController:
 		if video is None:
 			raise CommandError("Video not found.")
 
-		self.__current_video_index = self.__queue.index(video)
+		self.__current_video = video
 		self.__current_video_time = 0.0
 
 		self.broadcast(
@@ -173,16 +179,19 @@ class RoomController:
 		self.__queue.remove(video)
 		video.remove()
 
-		if removed_index == self.__current_video_index:
-			new_index = self.__current_video_index
-			if new_index == len(self.__queue) and new_index > 0:
-				new_index -= 1
-			self.__current_video_index = new_index
+		if video.item_id == self.__current_video.item_id:
+			if len(self.__queue) > 0:
+				new_index = removed_index
+				if new_index == len(self.__queue):
+					new_index -= 1
+				self.__current_video = self.__queue[new_index]
+			else:
+				self.__current_video = None
 			self.__current_video_time = 0.0
 
 			self.broadcast(
 				{"command": "change_video"
-					, "video": self.serialize_video(self.__queue[new_index])})
+					, "video": self.serialize_video(self.__current_video)})
 
 		self.broadcast(
 			{"command": "remove_queue_video"
@@ -265,15 +274,15 @@ class RoomController:
 		user_session.send(
 			{"command": "initial_queue"
 				, "queue": map(lambda x: self.serialize_video(x), self.__queue)})
-		if len(self.__queue) > 0:
+		if self.__current_video is not None:
 			user_session.send(
 				{"command": "change_video"
-					, "video": self.serialize_video(self.__queue[self.__current_video_index])})
+					, "video": self.serialize_video(self.__current_video)})
 
-		if self.__video_playing:
+		if self.__video_playing or self.__current_video_time > 0.0:
 			user_session.send(
 				{"command": "video_state"
-					, "playing": self.__video_playing
+					, "state": "playing" if self.__video_playing else "paused"
 					, "time": self.__current_video_time})
 
 	#### Videos.
@@ -315,3 +324,5 @@ class RoomController:
 			self.broadcast(
 				{"command": "change_video"
 					, "video": serialized_video})
+			self.__current_video = video
+			self.__current_video_time = 0.0
