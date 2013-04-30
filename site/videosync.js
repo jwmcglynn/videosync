@@ -448,7 +448,6 @@ String.prototype.format = function() {
 		on_player_ready: function(event) {
 			youtube.playerReady = true;
 
-			debug_print("Load video, autoplay = {0}".format(youtube.is_autoplay));
 			if (youtube.is_autoplay) {
 				if (youtube.start_time != 0) {
 					youtube.seek(youtube.start_time);
@@ -497,7 +496,7 @@ String.prototype.format = function() {
 						, item_id: queue.next_video_id()});
 				}
 			} else if (event.data == YT.PlayerState.UNSTARTED) {
-				state = is_autoplay ? videoStates.PLAYING : videoStates.PAUSED;
+				state = youtube.is_autoplay ? videoStates.PLAYING : videoStates.PAUSED;
 			}
 
 			if (state != youtube.lastVideoState
@@ -518,7 +517,6 @@ String.prototype.format = function() {
 		},
 		
 		load: function(video, autoplay) {
-			debug_print("Load video, autoplay = {0}".format(autoplay));
 			youtube.is_autoplay = autoplay;
 			youtube.start_time = video.start_time;
 
@@ -526,7 +524,7 @@ String.prototype.format = function() {
 			$container.append($("<div>", {id: "player"}));
 			youtube.player = new YT.Player("player", {
 				height: $container.height(),
-				width: $container.width(),
+				width: $container.height() * ASPECT_RATIO,
 				videoId: query_variable(video.url, "v"),
 				events: {
 					"onReady": youtube.on_player_ready,

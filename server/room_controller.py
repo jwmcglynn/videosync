@@ -92,7 +92,6 @@ class RoomController:
 				, "username": user_session.username})
 
 	def process_add_video(self, user_session, message):
-
 		def on_video_resolve_error(error):
 			if type(error.value) == VideoError:
 				user_session.send(
@@ -295,6 +294,10 @@ class RoomController:
 		}
 
 	def on_video_resolved(self, video_info):
+		for video in self.__queue:
+			if video_info.url == video.url:
+				return
+
 		video = self.__room.add_video(
 			video_info.service
 			, video_info.url
