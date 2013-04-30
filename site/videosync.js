@@ -174,14 +174,14 @@ function debug() {
 			var $entity = $("<li class='ui-state-default'>");
 			$entity.attr("data-username", username);
 
-			var $moderator_tag = $("<span class='moderator_tag'>").html("<img src='play.svg' width='20' height='20'>");
+			var $moderator_tag = $("<span class='moderator_tag'>").html("<img src='moderator.svg' width='20' height='20'>");
 			$entity.append($moderator_tag);
 
 			$username = $("<span class='username'>");
 			users.format_username($username, username);
 			$entity.append($username);
 
-			var $make_moderator = $("<span class='make_moderator moderator_controls'>").html("<img src='play.svg' width='20' height='20'>").hide();
+			var $make_moderator = $("<span class='make_moderator moderator_controls'>").html("<img src='make_moderator.svg' width='20' height='20'>").hide();
 			$entity.append($make_moderator);
 
 			if (controller.username == username) {
