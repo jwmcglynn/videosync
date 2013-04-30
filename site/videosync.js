@@ -8,6 +8,10 @@ String.prototype.format = function() {
 	return s;
 };
 
+function lnb() {
+	$("body").css("font-family", "'Comic Sans MS', cursive");
+}
+
 (function($, sr) {
 	// debouncing function from John Hann
 	// http://unscriptable.com/index.php/2009/03/20/debouncing-javascript-methods/
@@ -124,7 +128,7 @@ String.prototype.format = function() {
 				controller.set_moderator(controller.username == message.username);
 				users.set_moderator_name(message.username);
 			} else if (message.command == "change_video") {
-				queue.active_video(message.video);
+				queue.select_video(message.video);
 				controller.change_video(message.video);
 			} else if (message.command == "video_state" && !controller.is_moderator) {
 				if (message.state == "playing") {
@@ -239,14 +243,26 @@ String.prototype.format = function() {
 	};
 
 	var queue = {
-		data: [],
-		current_index: -1,
-		html_entities: [],
+		current: null,
 
 		initialize: function(initial_queue) {
 			for (var i = 0; i < initial_queue.length; ++i) {
 				queue.add(initial_queue[i]);
 			}
+		},
+
+		current_index: function() {
+			if (queue.current) {
+				return queue.current.index();
+			} else {
+				return 0;
+			}
+		},
+
+		from_item_id: function(item_id) {
+			var $result = $("#queue").find("[item_id='{0}']".format(item_id));
+			if ($result.length) return $($result[0]);
+			else return null;
 		},
 
 		update_moderator: function() {
@@ -270,39 +286,30 @@ String.prototype.format = function() {
 			}
 		},
 
-		active_video: function(video) {
-			var index = -1;
-			for (var i = 0; i < queue.data.length; ++i) {
-				if (queue.data[i].item_id == video.item_id) {
-					index = i;
-					break;
-				}
+		select_video: function(video) {
+			if (queue.current) {
+				queue.current.switchClass("highlighted", "", 200);
 			}
 
-			if (queue.current_index != -1 && queue.html_entities[queue.current_index]) {
-				queue.html_entities[queue.current_index].switchClass("highlighted", "", 200);
-			}
-
-			if (index != -1) {
-				queue.current_index = index;
-				queue.html_entities[index].switchClass("", "highlighted", 200);
+			queue.current = queue.from_item_id(video.item_id);
+			if (queue.current) {
+				queue.current.switchClass("", "highlighted", 200);
 			} else {
 				debug_print("Error: Could not find video to select.");
 			}
 		},
 
 		next_video_id: function() {
-			var next_index = queue.current_index + 1;
-			if (next_index >= queue.data.length) {
+			var $children = $("#queue").children();
+			var next_index = queue.current_index() + 1;
+			if (next_index >= $children.length) {
 				next_index = 0;
 			}
 
-			return queue.data[next_index].item_id;
+			return $children.eq(next_index).attr("item_id");
 		},
 
 		add: function(video) {
-			queue.data.push(video);
-
 			var $entity = $("<li class='ui-state-default'>");
 			$entity.attr("item_id", video.item_id);
 			var $play_button = $("<span class='play moderator_controls'>").html("<img src='play.svg' width='20' height='20'>").css("opacity", 0);
@@ -347,7 +354,6 @@ String.prototype.format = function() {
 					}
 				});
 
-			queue.html_entities.push($entity);
 			$("#queue").append($entity);
 			if (controller.is_moderator) {
 				$("#queue").sortable("refresh");
@@ -355,18 +361,9 @@ String.prototype.format = function() {
 		},
 
 		remove: function(item_id) {
-			var index = -1;
-			for (var i = 0; i < queue.data.length; ++i) {
-				if (queue.data[i].item_id == item_id) {
-					index = i;
-					break;
-				}
-			}
-
-			if (index != -1) {
-				queue.data.splice(index, 1);
-				$video = queue.html_entities.splice(index, 1)[0];
-				$video.remove();
+			var $element = queue.from_item_id(item_id);
+			if ($element) {
+				$element.remove();
 				if (controller.is_moderator) {
 					$("#queue").sortable("refresh");
 				}
@@ -376,26 +373,14 @@ String.prototype.format = function() {
 		},
 
 		move: function(item_id, index) {
-			var old_index = -1;
-			for (var i = 0; i < queue.data.length; ++i) {
-				if (queue.data[i].item_id == item_id) {
-					old_index = i;
-					break;
-				}
-			}
-
-			if (old_index != -1) {
-				var video = queue.data.splice(old_index, 1)[0];
-				queue.data.splice(index, 0, video);
-
-				var $video = queue.html_entities.splice(old_index, 1)[0];
-				queue.html_entities.splice(index, 0, $video);
-				$video.remove();
+			var $element = queue.from_item_id(item_id);
+			if ($element) {
+				$element.remove();
 
 				if (index == 0) {
-					$("#queue").prepend($video);
+					$("#queue").prepend($element);
 				} else {
-					queue.html_entities[index - 1].after($video);
+					$("#queue").children().eq(index - 1).after($element);
 				}
 
 				if (controller.is_moderator) {
