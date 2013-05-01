@@ -285,6 +285,7 @@ function debug() {
 			var $queue = $("#queue");
 
 			if (controller.is_moderator) {
+				$queue.removeClass("not_moderator");
 				$queue.addClass("moderator");
 				$queue.sortable({
 					update: function(e, ui) {
@@ -297,6 +298,7 @@ function debug() {
 				$queue.disableSelection();
 			} else {
 				$queue.removeClass("moderator");
+				$queue.addClass("not_moderator");
 				$queue.sortable("cancel");
 				$queue.find(".show_on_hover").hide();
 			}
@@ -327,24 +329,28 @@ function debug() {
 
 		add: function(video) {
 			var $entity = $("<li class='ui-state-default'>");
+			var $div = $("<div>");
+			$entity.append($div);
 			$entity.attr("data-item_id", video.item_id);
-			var $play_button = $("<span class='play moderator_controls'>").html("<img src='play.svg' width='20' height='20'>").css("opacity", 0);
-			$entity.append($play_button);
-			$entity.append($("<span class='title'>").append($("<a>").text(video.title).attr({href: video.url, target: "_blank"})));
-			$entity.append($("<span class='time'>").text(format_time(video.duration)));
-			var $remove_button = $("<span class='remove moderator_controls'>").html("<img src='delete.svg' width='20' height='20'>").hide();
-			$entity.append($remove_button);
+			var $play_button = $("<div class='play moderator_controls'>").html("<img src='play.svg' width='20' height='20'>").css("opacity", 0);
+			$div.append($play_button);
+			$div.append($("<div class='title'>").append($("<a>").text(video.title).attr({href: video.url, target: "_blank", title: video.title})));
+			var $remove_button = $("<div class='remove moderator_controls'>").html("<img src='delete.svg' width='20' height='20'>").hide();
+			$div.append($remove_button);
+			$div.append($("<div class='time'>").text(format_time(video.duration)));
 
 			$entity.hover(
 				function() {
 					if (controller.is_moderator) {
 						$(this).switchClass("", "hover", 200);
-						$(this).find(".moderator_controls").fadeTo(200, 1);
+						$(this).find(".play").fadeTo(200, 1);
+						$(this).find(".remove").fadeIn(200);
 					}
 				},
 				function() {
 					$(this).switchClass("hover", "", 200);
-					$(this).find(".moderator_controls").fadeTo(200, 0);
+					$(this).find(".play").fadeTo(200, 0);
+					$(this).find(".remove").fadeOut(200);
 				});
 
 			$play_button.click(

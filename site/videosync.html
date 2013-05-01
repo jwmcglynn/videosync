@@ -12,17 +12,18 @@
 	<div id="wrapper">
 		<div id="content">
 			<div id="player_container"></div>
-			<div id="controls_container">
-				<div id="controls">URL: <input id="video_url"><button id="add_video">Add</button></div>
-			</div>
 			<div id="bottom">
-				<ul id="queue"></ul>
+				<div id="guest_name_change">Username: <input id="username"><button id="change_name">Submit</button></div>
+				<ul id="users"></ul>
 			</div>
 		</div>
 	</div>
 	<div id="sidebar">
-		<div id="guest_name_change">Username: <input id="username"><button id="change_name">Submit</button></div>
-		<ul id="users"></ul>
+		<h3 class="title"><img src="logo.svg" width="46" height="46"> videosync</h3>
+		<div id="controls_container">
+			<div id="controls">URL: <input id="video_url"><button id="add_video">Add</button></div>
+		</div>
+		<ul id="queue" class="not_moderator"></ul>
 	</div>
 </div>
 <div id="footer">
