@@ -33,6 +33,9 @@ body {
 	float: right;
 	width: 250px;
 	height: 100%;
+}
+
+#queue_container {
 	overflow: auto;
 }
 

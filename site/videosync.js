@@ -16,6 +16,8 @@ function debug() {
 	$("#debug").show();
 }
 
+$.getScript("jquery.scrollintoview.js");
+
 (function($, sr) {
 	// debouncing function from John Hann
 	// http://unscriptable.com/index.php/2009/03/20/debouncing-javascript-methods/
@@ -312,6 +314,9 @@ function debug() {
 			queue.current = queue.from_item_id(video.item_id);
 			if (queue.current) {
 				queue.current.switchClass("", "highlighted", 200);
+				queue.current.scrollintoview({
+					duration: 800
+				});
 			} else {
 				debug_print("Error: Could not find video to select.");
 			}
@@ -497,6 +502,9 @@ function debug() {
 			if (controller.current_player) {
 				controller.current_player.resize(width, height);
 			}
+
+			// Resize sidebar.
+			$("#queue_container").height($(window).height() - $("#controls_container").outerHeight());
 		}
 	};
 	
