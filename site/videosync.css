@@ -48,6 +48,10 @@ h3.title img {
 	vertical-align: middle;
 }
 
+#video_url {
+	width: 125px;
+}
+
 #footer {
 	clear: both;
 	width: 100%;

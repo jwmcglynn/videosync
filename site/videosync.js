@@ -440,22 +440,28 @@ function debug() {
 		},
 
 		change_video: function(video) {
-			var autoplay = false;
-			if (controller.current_player) {
-				autoplay = controller.current_player.lastVideoState == videoStates.PLAYING;
-				controller.current_player.unload();
-			}
+			var new_player = null;
 
 			if (video.service == "youtube") {
-				controller.current_player = youtube;
+				new_player = youtube;
 			} else {
-				controller.current_player = null;
+				new_player = null;
 				debug_print("Invalid video service {0}".format(video.service));
 			}
 
-
 			if (controller.current_player) {
-				controller.current_player.load(video, autoplay);
+				var autoplay = controller.current_player.lastVideoState == videoStates.PLAYING;
+				
+				if (controller.current_player == new_player) {
+					controller.current_player.switch_video(video, autoplay);
+				} else {
+					controller.current_player.unload();
+					controller.current_player = new_player;
+					controller.current_player.load(video, autoplay);
+				}
+			} else {
+				controller.current_player = new_player;
+				controller.current_player.load(video, false);
 			}
 		},
 
@@ -473,7 +479,6 @@ function debug() {
 
 		resize_video: function() {
 			var $bottom = $("#bottom");
-			var $controls = $("#controls_container");
 
 			var width = $(window).width() - $("#sidebar").outerWidth();
 			if (width <= MINIMUM_WIDTH) {
@@ -481,12 +486,12 @@ function debug() {
 			}
 
 			var height = width / ASPECT_RATIO;
-			if ($(window).height() - height < MINIMUM_BOTTOM_HEIGHT + $controls.outerHeight()) {
-				height = $(window).height() - MINIMUM_BOTTOM_HEIGHT - $controls.outerHeight();
+			if ($(window).height() - height < MINIMUM_BOTTOM_HEIGHT) {
+				height = $(window).height() - MINIMUM_BOTTOM_HEIGHT;
 				width = height * ASPECT_RATIO;
 			}
 
-			$bottom.height($(window).height() - height - $controls.outerHeight());
+			$bottom.height($(window).height() - height);
 			$("#player_container").height(height);
 
 			if (controller.current_player) {
@@ -622,12 +627,14 @@ function debug() {
 			video.width(width).height(height);
 		},
 		
-		loadVideo: function(videoID) {
-			var options = {videoId: videoID};
-			if(defaultQuality != null) {
-				options.suggestedQuality = defaultQuality;
+		switch_video: function(video, autoplay) {
+			var options = {
+				videoId: query_variable(video.url, "v")
+				, startSeconds: video.start_time};
+			youtube.player.loadVideoById(options);
+			if (!autoplay) {
+				youtube.player.pauseVideo();
 			}
-			youtube.player.loadVideoById(options);	
 		},
 		
 		play: function(seconds) {
