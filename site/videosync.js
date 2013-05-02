@@ -60,6 +60,7 @@ $.getScript("jquery.scrollintoview.js");
 	var ASPECT_RATIO = 640.0 / 390.0;
 	var MINIMUM_BOTTOM_HEIGHT = 200.0;
 	var MINIMUM_WIDTH = 320;
+	var error_timeout = null;
 	
 	function html_encode(text) {
 		return $("<div/>").text(text).html();
@@ -71,6 +72,31 @@ $.getScript("jquery.scrollintoview.js");
 		debugBox.append(html_encode(text) + "<br>");
 		if (isAtBottom) {
 			debugBox.scrollTop(debugBox.prop("scrollHeight"));
+		}
+	}
+
+	function show_error(message) {
+		if (error_timeout) {
+			clearInterval(error_timeout);
+		}
+
+		var $error = $("#error");
+
+		var effect = function() {
+			$error.css({opacity: 1.0, height: "40px"});
+			$("#error_message").text(message);
+			$error.slideDown(200, function() {
+				error_timeout = setInterval(function() {
+					$error.fadeOut(300);
+				}, 4000);
+			});
+		};
+
+		if ($error.css("display") == "none") {
+			$("#error").stop(true);
+			effect();
+		} else {
+			$("#error").stop(true).fadeOut(200, effect);
 		}
 	}
 
@@ -151,8 +177,12 @@ $.getScript("jquery.scrollintoview.js");
 			} else if (message.command == "remove_queue_video" && !controller.is_moderator) {
 				queue.remove(message.item_id);
 			} else if (message.command == "command_error") {
-				// TODO
 				debug_print("Command error {0}: {1}".format(message.context, message.reason));
+				show_error(message.reason);
+
+				if (message.context == "guest_username") {
+					$("#guest_name_change").show();
+				}
 			}
 		}
 	}
@@ -790,7 +820,7 @@ $.getScript("jquery.scrollintoview.js");
 			var input = $("#username");
 			socket.send({command: "guest_username", username: input.val()});
 			input.val("");
-			$("#guest_name_change").hide()
+			$("#guest_name_change").hide();
 		}
 
 		$("#change_name").click(change_username);

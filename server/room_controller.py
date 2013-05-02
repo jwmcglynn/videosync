@@ -25,6 +25,10 @@ class CaseInsensitiveDict(dict):
 	def __delitem__(self, key):
 		return super(CaseInsensitiveDict, self).__delitem__(key.lower())
 
+	def __contains__(self, key):
+		return super(CaseInsensitiveDict, self).__contains__(key.lower())
+
+
 def get_instance(room_id):
 	if room_id in active_rooms:
 		return active_rooms[room_id]
