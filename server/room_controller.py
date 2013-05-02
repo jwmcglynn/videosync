@@ -6,14 +6,24 @@ import unicodedata
 from services.common import UrlError
 from services.youtube import VideoError
 
+active_rooms = dict()
+NoSuchRoomException = room_model.NoSuchRoomException
+
 def filter_non_printable(s):
 	# Strip unwanted characters: http://en.wikipedia.org/wiki/Mapping_of_Unicode_characters
 	PRINTABLE = set(("Lu", "Ll", "Nd", "Pc", "Zs"))
 	result = filter(lambda x: unicodedata.category(x) in PRINTABLE, s)
-	return u"".join(result)
+	return u"".join(result).strip()
 
-active_rooms = dict()
-NoSuchRoomException = room_model.NoSuchRoomException
+class CaseInsensitiveDict(dict):
+	def __setitem__(self, key, value):
+		super(CaseInsensitiveDict, self).__setitem__(key.lower(), value)
+
+	def __getitem__(self, key):
+		return super(CaseInsensitiveDict, self).__getitem__(key.lower())
+
+	def __delitem__(self, key):
+		return super(CaseInsensitiveDict, self).__delitem__(key.lower())
 
 def get_instance(room_id):
 	if room_id in active_rooms:
@@ -31,7 +41,7 @@ class RoomController:
 	def __init__(self, room_id):
 		self.__room = room_model.Room(room_id)
 		self.__active_users = []
-		self.__user_lookup = dict()
+		self.__user_lookup = CaseInsensitiveDict()
 		self.__queue = self.__room.video_queue()
 		self.__moderator = None
 		self.__current_video = None
