@@ -1,13 +1,17 @@
 import ConfigParser
 import json
+import urlparse
+import re
 
 from apiclient.discovery import build
 from twisted.internet import reactor
 from twisted.web.client import Agent
 from twisted.web.http_headers import Headers
-from isodate import parse_duration
+from isodate import parse_duration, ISO8601Error
 
-from services.common import WebClientContextFactory, ResponseHandler, VideoError
+from services.common import WebClientContextFactory, ResponseHandler, VideoInfo, UrlError, VideoError
+
+YOUTUBE_VIDEOID = re.compile("^[a-z0-9_-]*$", re.IGNORECASE)
 
 config = ConfigParser.ConfigParser()
 config.read("videosync.cfg")
@@ -21,9 +25,8 @@ class YoutubeResponseHandler(ResponseHandler):
 		self.video_info = video_info
 
 	def connectionLost(self, reason):
-		response = json.loads(self.body)
-
-		if len(response["items"]):
+		try:
+			response = json.loads(self.body)
 			video_data = response["items"][0]
 
 			if not video_data["status"]["embeddable"]:
@@ -37,27 +40,61 @@ class YoutubeResponseHandler(ResponseHandler):
 				self.video_info.duration = parse_duration(video_data["contentDetails"]["duration"]).seconds
 
 				self.finished.callback(self.video_info)
-		else:
+		except (ValueError, KeyError, IndexError):
 			self.finished.errback(VideoError("Unable to find youtube video info."))
 
-def resolve(video_info):
-	request = __youtube.videos().list(id=video_info.uid, part="snippet,contentDetails,status")
+def resolve(parts):
+	start_time_str = None
 
+	if parts["path"] == "/watch":
+		fragment = urlparse.parse_qs(parts["fragment"])
+
+		if not "v" in parts["query"]:
+			raise UrlError("Unable to find videoID.")
+
+		if "t" in fragment:
+			start_time_str = fragment["t"][0]
+
+		video_id = parts["query"]["v"][0]
+	elif parts["hostname"] == "youtu.be":
+		# First character of path is /
+		video_id = parts["path"][1:]
+
+		if video_id == "":
+			raise UrlError("Unable to find videoID.")
+
+		if "t" in parts["query"]:
+			start_time_str = parts["query"]["t"][0]
+
+	if not YOUTUBE_VIDEOID.match(video_id):
+		raise UrlError("Unable to find valid videoID.")
+
+	query = "v=" + video_id
+	fragment = ""
+	if start_time_str:
+		try:
+			start_time = parse_duration("PT" + start_time_str.upper()).seconds
+			fragment = "t=" + start_time_str
+		except ISO8601Error:
+			start_time = 0
+	else:
+		start_time = 0
+
+	request = __youtube.videos().list(id=video_id, part="snippet,contentDetails,status")
 	headers = convert_headers(request.headers)
-
 	d = __agent.request(
 		"GET"
 		, request.uri.encode('latin-1')
 		, headers
 		, None)
 
+	url = urlparse.urlunparse(("http", "youtube.com", "/watch", "", query, fragment))
+	video_info = VideoInfo(u"youtube", url, video_id, None, None, start_time)
+
 	handler = YoutubeResponseHandler(video_info)
 	d.addCallbacks(handler.response_callback, handler.error_callback)
 
 	return d
-
-def handle_error(failure):
-	print type(failure.value), failure
 
 def convert_headers(headers):
 	new_headers = {}

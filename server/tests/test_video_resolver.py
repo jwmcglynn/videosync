@@ -28,6 +28,13 @@ k_video3 = {"service": u"youtube"
 			, "duration": 94
 			, "start_time": 0}
 
+k_video4 = {"service": u"vimeo"
+			, "url": u"http://vimeo.com/64723147"
+			, "uid": 64723147
+			, "title": u"Juggle & Cut"
+			, "duration": 811
+			, "start_time": 0}
+
 class TestVideoResolver:
 	def setup(self):
 		threaded_reactor()
@@ -70,6 +77,17 @@ class TestVideoResolver:
 			assert_equal(k_video3, self.convert_video_info(video_info))
 
 		d = resolve(k_url3)
+
+		d.addCallback(check_video)
+
+		return d
+
+	@deferred(timeout=5.0)
+	def test_vimeo(self):
+		def check_video(video_info):
+			assert_equal(k_video4, self.convert_video_info(video_info))
+
+		d = resolve(k_video4["url"])
 
 		d.addCallback(check_video)
 
