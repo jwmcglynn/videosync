@@ -479,13 +479,15 @@ $.getScript("jquery.scrollintoview.js");
 
 			if (video.service == "youtube") {
 				new_player = youtube;
+			} else if (video.service == "vimeo") {
+				new_player = vimeo;
 			} else {
 				new_player = null;
 				debug_print("Invalid video service {0}".format(video.service));
 			}
 
 			if (controller.current_player) {
-				var autoplay = controller.current_player.lastVideoState == videoStates.PLAYING;
+				var autoplay = controller.current_player.last_video_state == videoStates.PLAYING;
 				
 				if (controller.current_player == new_player) {
 					controller.current_player.switch_video(video, autoplay);
@@ -501,15 +503,21 @@ $.getScript("jquery.scrollintoview.js");
 		},
 
 		play: function(seconds) {
-			youtube.play(seconds);
+			if (controller.current_player) {
+				controller.current_player.play(seconds);
+			}
 		},
 
 		pause: function(seconds) {
-			youtube.pause(seconds);
+			if (controller.current_player) {
+				controller.current_player.pause(seconds);
+			}
 		},
 
 		sync_with_time: function(seconds) {
-			youtube.sync_with_time(seconds);
+			if (controller.current_player) {
+				controller.current_player.sync_with_time(seconds);
+			}
 		},
 
 		resize_video: function() {
@@ -541,17 +549,16 @@ $.getScript("jquery.scrollintoview.js");
 	var youtube = {
 		APIReady: false,
 		player: null,
-		playerReady: false,
-		defaultQuality: null,
-		haveControl: false,
-		progressReporter: null,
-		lastPlaybackPosition: NaN,
-		lastVideoState: videoStates.UNSTARTED,
+		player_ready: false,
+		default_quality: null,
+		progress_reporter: null,
+		last_playback_position: NaN,
+		last_video_state: videoStates.UNSTARTED,
 		is_autoplay: false,
 		start_time: 0.0,
 		
 		on_player_ready: function(event) {
-			youtube.playerReady = true;
+			youtube.player_ready = true;
 
 			if (youtube.is_autoplay) {
 				if (youtube.start_time != 0) {
@@ -563,7 +570,7 @@ $.getScript("jquery.scrollintoview.js");
 		},
 		
 		on_playback_quality_change: function(event) {
-			youtube.defaultQuality = event.data;
+			youtube.default_quality = event.data;
 		},
 		
 		on_player_state_change: function(event) {
@@ -580,11 +587,11 @@ $.getScript("jquery.scrollintoview.js");
 				YT.PlayerState.CUED
 			*/
 			var state = videoStates.UNSTARTED;
-			var time = youtube.getCurrentTime();
+			var time = youtube.get_current_time();
 			if (event.data == YT.PlayerState.PLAYING) {
 				state = videoStates.PLAYING;
 			} else if (event.data == YT.PlayerState.PAUSED) {
-				if (youtube.getCurrentTime() + SYNC_THRESHOLD >= youtube.getTotalTime()) {
+				if (youtube.get_current_time() + SYNC_THRESHOLD >= youtube.get_total_time()) {
 					// At the end of video we get a PAUSED->ENDED.  Ignore the PAUSED is we're close to the end.
 					// TODO: Better handling.
 					return;
@@ -604,16 +611,16 @@ $.getScript("jquery.scrollintoview.js");
 				state = youtube.is_autoplay ? videoStates.PLAYING : videoStates.PAUSED;
 			}
 
-			if (state != youtube.lastVideoState
-					|| time != youtube.lastPlaybackPosition) {
+			if (state != youtube.last_video_state
+					|| time != youtube.last_playback_position) {
 				if (controller.is_moderator) {
 					socket.send(
 						{command: "update_video_state"
 						, position: time
 						, "state": (state == videoStates.PLAYING ? "playing" : "paused")});
-					youtube.lastPlaybackPosition = time;
+					youtube.last_playback_position = time;
 				}
-				youtube.lastVideoState = state;
+				youtube.last_video_state = state;
 			}
 		},
 		
@@ -640,23 +647,23 @@ $.getScript("jquery.scrollintoview.js");
 				}
 			});
 
-			clearInterval(youtube.progressReporter);
-			youtube.progressReporter = setInterval(function() {
-				var time = youtube.getCurrentTime();
-				if (controller.is_moderator && youtube.lastPlaybackPosition != time) {
+			clearInterval(youtube.progress_reporter);
+			youtube.progress_reporter = setInterval(function() {
+				var time = youtube.get_current_time();
+				if (controller.is_moderator && youtube.last_playback_position != time) {
 					socket.send(
 						{command: "update_video_state"
 						, position: time
-						, "state": (youtube.lastVideoState == videoStates.PLAYING ? "playing" : "paused")});
-					youtube.lastPlaybackPosition = time;
+						, "state": (youtube.last_video_state == videoStates.PLAYING ? "playing" : "paused")});
+					youtube.last_playback_position = time;
 				}
 			}, 500);
 		},
 
 		unload: function() {
-			clearInterval(youtube.progressReporter);
+			clearInterval(youtube.progress_reporter);
 			youtube.player = null;
-			youtube.playerReady = false;
+			youtube.player_ready = false;
 			$("#player_container").html("");
 		},
 
@@ -676,8 +683,8 @@ $.getScript("jquery.scrollintoview.js");
 		},
 		
 		play: function(seconds) {
-			if (youtube.playerReady) {
-				if (youtube.lastVideoState == videoStates.PLAYING) {
+			if (youtube.player_ready) {
+				if (youtube.last_video_state == videoStates.PLAYING) {
 					youtube.sync_with_time(seconds);
 				} else {
 					if (seconds != 0) {
@@ -692,35 +699,35 @@ $.getScript("jquery.scrollintoview.js");
 		},
 		
 		pause: function(seconds) {
-			if (youtube.playerReady) {
+			if (youtube.player_ready) {
 				youtube.seek(seconds);
 				youtube.player.pauseVideo();
 			}
 		},
 		
 		seek: function(seconds) {
-			if (youtube.playerReady) {
+			if (youtube.player_ready) {
 				youtube.player.seekTo(seconds, true);
 			}
 		},
 
 		sync_with_time: function(seconds) {
-			var localTime = youtube.getCurrentTime();
-			if (Math.abs(localTime - seconds) > SYNC_THRESHOLD) {
+			var local_time = youtube.get_current_time();
+			if (Math.abs(local_time - seconds) > SYNC_THRESHOLD) {
 				debug_print("Seeking to " + seconds);
 				youtube.seek(seconds);
 			}
 		},
 		
-		getCurrentTime: function() {
-			if (youtube.playerReady && youtube.player.getCurrentTime) {
+		get_current_time: function() {
+			if (youtube.player_ready && youtube.player.getCurrentTime) {
 				return youtube.player.getCurrentTime();
 			}
 			return 0;
 		},
 		
-		getTotalTime: function() {
-			if (youtube.playerReady && youtube.player.getDuration) {
+		get_total_time: function() {
+			if (youtube.player_ready && youtube.player.getDuration) {
 				return youtube.player.getDuration();
 			}
 			return 0;
@@ -733,6 +740,195 @@ $.getScript("jquery.scrollintoview.js");
 
 	// Load Youtube Iframe API
 	$.getScript("https://www.youtube.com/iframe_api");
+
+	var vimeo = {
+		player: null,
+		player_ready: false,
+		last_playback_position: NaN,
+		last_video_state: videoStates.UNSTARTED,
+
+		// Cache video data since calls to the vimeo api are asynchronus
+		current_time: NaN,
+		duration: NaN,
+
+		on_player_ready: function() {
+			vimeo.player_ready = true;
+
+			vimeo.player.addEvent("play", vimeo.on_play);
+			vimeo.player.addEvent("pause", vimeo.on_pause);
+			vimeo.player.addEvent("finish", vimeo.on_finish);
+			vimeo.player.addEvent("playProgress", vimeo.on_play_progress);
+			vimeo.player.addEvent("seek", vimeo.on_seek);
+
+			vimeo.player.api("getDuration", function(duration) {
+				vimeo.duration = parseFloat(duration);
+			})
+
+			//vimeo.seek(vimeo.start_time);
+		},
+
+		on_play: function() {
+			if (videoStates.PLAYING != vimeo.last_video_state) {
+				if (controller.is_moderator) {
+					socket.send(
+						{command: "update_video_state"
+						, position: vimeo.current_time
+						, state: "playing"});
+					vimeo.last_playback_position = vimeo.current_time;
+				}
+				vimeo.last_video_state = videoStates.PLAYING;
+			}
+		},
+
+		on_pause: function() {
+			if (videoStates.PAUSED != vimeo.last_video_state) {
+				if ((vimeo.get_current_time() + SYNC_THRESHOLD) >= vimeo.get_total_time()) {
+					// At the end of video we get a PAUSED->ENDED.  Ignore the PAUSED is we're close to the end.
+					// TODO: Better handling.
+					return;
+				}
+				if (controller.is_moderator) {
+					socket.send(
+						{command: "update_video_state"
+						, position: vimeo.current_time
+						, state: "paused"});
+					vimeo.last_playback_position = vimeo.current_time;
+				}
+				vimeo.last_video_state = videoStates.PAUSED;
+			}
+		},
+
+		on_finish: function() {
+			if (controller.is_moderator) {
+				socket.send(
+					{command: "select_video"
+					, item_id: queue.next_video_id()});
+			}
+		},
+
+		on_play_progress: function(data) {
+			new_time = parseFloat(data.seconds);
+			if(new_time != vimeo.current_time) {
+				if (controller.is_moderator && Math.abs(new_time - vimeo.last_playback_position) > 0.5) {
+					socket.send(
+						{command: "update_video_state"
+						, position: new_time
+						, state: (vimeo.last_video_state == videoStates.PLAYING ? "playing" : "paused")});
+					vimeo.last_playback_position = new_time;
+				}
+				vimeo.current_time = new_time;
+			}
+		},
+
+		on_seek: function(data) {
+			vimeo.on_play_progress(data);
+		},
+
+		load: function(video, autoplay) {
+			vimeo.current_time = vimeo.last_playback_position = 0;
+			vimeo.duration = parseFloat(video.duration);
+			vimeo.start_time = video.start_time;
+
+			$container = $("#player_container");
+
+			query = {
+				api: 1
+				, player_id: "player"
+			};
+
+			if(autoplay) {
+				query.autoplay = 1;
+			}
+
+			path_parts = video.url.split("?")[0].split("/");
+			video_id = path_parts[path_parts.length - 1];
+
+			url = "http://player.vimeo.com/video/" + video_id + "?" + $.param(query)
+
+			$iframe = $("<iframe>", {
+				id: "player"
+				, src: url
+				, height: $container.height()
+				, width: $container.height() * ASPECT_RATIO
+				, frameborder: 0
+				, webkitAllowFullScreen: ""
+				, mozallowfullscreen: ""
+				, allowFullScreen: ""
+			});
+			$container.append($iframe);
+			vimeo.player = $f($iframe[0]);
+
+			vimeo.player.addEvent("ready", vimeo.on_player_ready);
+		},
+
+		unload: function() {
+			vimeo.player = null;
+			vimeo.player_ready = false;
+			$("#player_container").html("");
+		},
+
+		resize: function(width, height) {
+			var video = $("#player_container iframe");
+			video.width(width).height(height);
+		},
+		
+		switch_video: function(video, autoplay) {
+			vimeo.unload();
+			vimeo.load(video, autoplay);
+		},
+
+		play: function(seconds) {
+			if (vimeo.player_ready) {
+				if (vimeo.last_video_state == videoStates.PLAYING) {
+					vimeo.sync_with_time(seconds);
+				} else {
+					if (seconds != 0) {
+						vimeo.seek(seconds);
+					}
+
+					vimeo.player.api("play")
+				}
+			}
+		},
+		
+		pause: function(seconds) {
+			if (vimeo.player_ready) {
+				vimeo.seek(seconds);
+				vimeo.player.api("pause");
+			}
+		},
+		
+		seek: function(seconds) {
+			if (vimeo.player_ready) {
+				vimeo.player.api("seekTo", seconds);
+			}
+		},
+
+		sync_with_time: function(seconds) {
+			var local_time = vimeo.current_time;
+			if (Math.abs(local_time - seconds) > SYNC_THRESHOLD) {
+				debug_print("Seeking to " + seconds);
+				vimeo.seek(seconds);
+			}
+		},
+		
+		get_current_time: function() {
+			if (vimeo.player_ready) {
+				return vimeo.current_time;
+			}
+			return 0;
+		},
+		
+		get_total_time: function() {
+			if (vimeo.player_ready) {
+				return vimeo.duration;
+			}
+			return 0;
+		}
+	}
+
+	// Load vimeo postMessage API
+	$.getScript("http://a.vimeocdn.com/js/froogaloop2.min.js");
 
 	// Get WebSocket object
 	var websock = null;
