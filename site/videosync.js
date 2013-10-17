@@ -68,10 +68,12 @@ $.getScript("jquery.scrollintoview.js");
 
 	function debug_print(text) {
 		var debugBox = $("#debug");
-		var isAtBottom = (debugBox.prop("scrollHeight") - debugBox.scrollTop() == debugBox.height());
-		debugBox.append(html_encode(text) + "<br>");
-		if (isAtBottom) {
-			debugBox.scrollTop(debugBox.prop("scrollHeight"));
+		if (debugBox.is(":visible")) {
+			var isAtBottom = (debugBox.prop("scrollHeight") - debugBox.scrollTop() == debugBox.height());
+			debugBox.append(html_encode(text) + "<br>");
+			if (isAtBottom) {
+				debugBox.scrollTop(debugBox.prop("scrollHeight"));
+			}
 		}
 	}
 
@@ -165,10 +167,11 @@ $.getScript("jquery.scrollintoview.js");
 				queue.select_video(message.video);
 				controller.change_video(message.video);
 			} else if (message.command == "video_state" && !controller.is_moderator) {
+				var seconds = parseFloat(message.position);
 				if (message.state == "playing") {
-					controller.play(message.position);
+					controller.play(seconds);
 				} else if (message.state == "paused") {
-					controller.pause(message.position);
+					controller.pause(seconds);
 				}
 			} else if (message.command == "add_queue_video") {
 				queue.add(message.video);
@@ -833,6 +836,7 @@ $.getScript("jquery.scrollintoview.js");
 
 			query = {
 				api: 1
+				, color: "339933"
 				, player_id: "player"
 			};
 
