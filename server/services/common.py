@@ -29,12 +29,13 @@ class ResponseHandler(Protocol):
 	def response_callback(self, response):
 		self.finished = Deferred()
 		self.body = ""
+		self.response = response
 		response.deliverBody(self)
 		return self.finished
 
 	def error_callback(self, error):
 		print type(error.value), error
-		return VideoError("Unable to find youtube video info.")
+		return VideoError("Unable to find video info.")
 
 	def dataReceived(self, bytes):
 		self.body += bytes

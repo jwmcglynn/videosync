@@ -1,23 +1,23 @@
 import urlparse
 
-from isodate import parse_duration
-from isodate.isoerror import ISO8601Error
-
-from services.common import UrlError, VideoInfo
+from services.common import UrlError
 from services.youtube import resolve as youtube_resolve
+from services.vimeo import resolve as vimeo_resolve
 
 YOUTUBE_HOSTNAMES = ( "youtu.be", "youtube.com" )
+VIMEO_HOSTNAMES = ( "vimeo.com" )
 
 def resolve(url):
 	parts = urlparse.urlparse(url)
 
-	hostname = parts.hostname
-	path = parts.path
-	query = urlparse.parse_qs(parts.query)
-	fragment = parts.fragment
+	if parts.scheme == "":
+		parts = urlparse.urlparse("http://" + url)
 
 	if not parts.scheme in ( "", "http", "https" ):
 		raise UrlError("Invalid Url Scheme.")
+
+	hostname = parts.hostname
+	query = urlparse.parse_qs(parts.query)
 
 	if not hostname:
 		raise UrlError("Unable to find hostname.")
@@ -26,47 +26,16 @@ def resolve(url):
 	if hostname[:4] == "www.":
 		hostname = hostname[4:]
 
-	# Youtube url processing
+	parts_dict = {
+		"hostname": hostname
+		, "path": parts.path
+		, "query": query
+		, "fragment": parts.fragment
+	}
+
 	if hostname in YOUTUBE_HOSTNAMES:
-		start_time_str = None
-
-		if path == "/watch":
-			fragment_parts = urlparse.parse_qs(fragment)
-
-			if not "v" in query:
-				raise UrlError("Unable to find videoID.")
-
-			if "t" in fragment_parts:
-				start_time_str = fragment_parts["t"][0]
-
-			videoID = query["v"][0]
-		elif hostname == "youtu.be":
-			# First character of path is /
-			videoID = path[1:] # TODO - Validate this to make sure its a valid videoID
-
-			if videoID == "":
-				raise UrlError("Unable to find videoID.")
-
-			if "t" in query:
-				start_time_str = query["t"][0]
-
-		query = "v=" + videoID
-		fragment = ""
-		if start_time_str:
-			try:
-				start_time = parse_duration("PT" + start_time_str.upper()).seconds
-				fragment = "t=" + start_time_str
-			except ISO8601Error:
-				start_time = 0
-		else:
-			start_time = 0
-
-		url = urlparse.urlunparse(( "http", "youtube.com", "/watch", "", query, fragment ))
-
-		video_info = VideoInfo(u"youtube", url, videoID, None, None, start_time)
-
-		d = youtube_resolve(video_info)
-
-		return d
+		return youtube_resolve(parts_dict)
+	elif hostname in VIMEO_HOSTNAMES:
+		return vimeo_resolve(parts_dict)
 	else:
-		raise UrlError("Unsupported site.")
+		raise UrlError("That site is not supported.")
