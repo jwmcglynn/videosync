@@ -43,7 +43,7 @@ class MockUserSessionBase(object):
 		self.waiting_count = 0
 
 	def __eq__(self, other):
-		return self.username == other.username
+		return self is other
 
 	def send(self, message):
 		print "%s got message: %s" % (self.username, message)
@@ -480,4 +480,53 @@ class TestRoomController():
 				, "item_id": k_video3["item_id"]}]
 			, user1.messages)
 		self.validate_video_queue([], None)
+		user1.messages = []
+
+	def test_advance_video(self):
+		## Advancing videos.
+		user1 = MockUserSession("TestUser1")
+
+		self.room_controller.user_connect(user1)
+		assert_equal(
+			[{"command": "room_joined", "username": "TestUser1"}
+				, {"command": "initial_users", "users": ["TestUser1"]}
+				 , {"command": "set_moderator", "username": "TestUser1"}
+				 , {"command": "initial_queue", "queue": []}]
+			, user1.messages)
+		user1.messages = []
+
+		# Add videos to queue.
+		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video1["url"]})
+		user1.wait_message_count(2)
+		assert_equal(
+			[{"command": "add_queue_video", "video": k_video1}
+				, {"command": "change_video", "video": k_video1}]
+			, user1.messages)
+		user1.messages = []
+
+		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video2["url"]})
+		user1.wait_message_count(1)
+		assert_equal([{"command": "add_queue_video", "video": k_video2}], user1.messages)
+		user1.messages = []
+
+		self.room_controller.process_message(user1, {"command": "add_video", "url": k_video3["url"]})
+		user1.wait_message_count(1)
+		assert_equal([{"command": "add_queue_video", "video": k_video3}], user1.messages)
+		user1.messages = []
+
+		# Issue advance commands (internal API).
+		self.room_controller.advance_video()
+		user1.wait_message_count(1)
+		assert_equal([{"command": "change_video", "video": k_video2}], user1.messages)
+		user1.messages = []
+
+		self.room_controller.advance_video()
+		user1.wait_message_count(1)
+		assert_equal([{"command": "change_video", "video": k_video3}], user1.messages)
+		user1.messages = []
+
+		# Wrap back to start.
+		self.room_controller.advance_video()
+		user1.wait_message_count(1)
+		assert_equal([{"command": "change_video", "video": k_video1}], user1.messages)
 		user1.messages = []

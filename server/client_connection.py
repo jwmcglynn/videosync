@@ -9,7 +9,7 @@ class UserSessionBase(object):
 		self.raw_username = username
 
 	def __eq__(self, other):
-		return self.username == other.username
+		return self is other
 
 	def send(self, message):
 		self.connection.sendMessage(json.dumps(message, separators=(',',':')))

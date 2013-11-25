@@ -1,5 +1,6 @@
 import models.room as room_model
 import video_resolver
+import vote_controller
 import itertools
 import unicodedata
 
@@ -12,7 +13,7 @@ NoSuchRoomException = room_model.NoSuchRoomException
 def filter_non_printable(s):
 	# Strip unwanted characters: http://en.wikipedia.org/wiki/Mapping_of_Unicode_characters
 	PRINTABLE = set(("Lu", "Ll", "Nd", "Pc", "Zs"))
-	result = filter(lambda x: unicodedata.category(x) in PRINTABLE, s)
+	result = filter(lambda x: unicodedata.category(x) in PRINTABLE, unicode(s))
 	return u"".join(result).strip()
 
 class CaseInsensitiveDict(dict):
@@ -27,6 +28,23 @@ class CaseInsensitiveDict(dict):
 
 	def __contains__(self, key):
 		return super(CaseInsensitiveDict, self).__contains__(key.lower())
+
+class EventSource(object):
+	def __init__(self):
+		self.__callbacks = []
+
+	def add_callback(self, callback):
+		self.__callbacks.append(callback)
+
+	def remove_callback(self, callback):
+		self.__callbacks.remove(callback)
+
+	def invoke(self, source, *args):
+		for callback in self.__callbacks:
+			callback(source, *args)
+
+	def __len__(self):
+		return len(self.__callbacks)
 
 
 def get_instance(room_id):
@@ -51,9 +69,31 @@ class RoomController:
 		self.__current_video = None
 		self.__current_video_time = 0.0
 		self.__video_playing = False
+		self.__event_user_connect = EventSource()
+		self.__event_user_disconnect = EventSource()
+		self.__event_video_changed = EventSource()
+		self.__event_moderator_changed = EventSource()
+		self.__vote_skip = None
+		self.__vote_mutiny = None
 
 		if len(self.__queue):
 			self.__current_video = self.__queue[0]
+
+	@property
+	def event_user_connect(self):
+		return self.__event_user_connect
+
+	@property
+	def event_user_disconnect(self):
+		return self.__event_user_disconnect
+
+	@property
+	def event_video_changed(self):
+		return self.__event_video_changed
+
+	@property
+	def event_moderator_changed(self):
+		return self.__event_moderator_changed
 
 	def process_message(self, user_session, message):
 		try:
@@ -62,6 +102,10 @@ class RoomController:
 					self.process_guest_username(user_session, message)
 				elif message["command"] == "add_video":
 					self.process_add_video(user_session, message)
+				elif message["command"] == "vote_skip":
+					self.process_vote_skip(user_session, message)
+				elif message["command"] == "vote_mutiny":
+					self.process_vote_mutiny(user_session, message)
 				elif user_session == self.__moderator:
 					# Moderator-level commands.
 					if message["command"] == "give_moderator":
@@ -74,6 +118,8 @@ class RoomController:
 						self.process_move_video(user_session, message)
 					elif message["command"] == "remove_video":
 						self.process_remove_video(user_session, message)
+					elif message["command"] == "vote_mutiny_cancel":
+						self.process_vote_mutiny_cancel(user_session, message)
 					else:
 						raise CommandError("Unknown command.")
 				else:
@@ -134,6 +180,19 @@ class RoomController:
 
 		d.addCallbacks(self.on_video_resolved, on_video_resolve_error)
 
+
+	def process_vote_skip(self, user_session, message):
+		if not self.__vote_skip:
+			self.__vote_skip = vote_controller.VoteSkipController(self)
+
+		self.__vote_skip.vote(self, user_session)
+
+	def process_vote_mutiny(self, user_session, message):
+		if not self.__vote_mutiny:
+			self.__vote_mutiny = vote_controller.VoteMutinyController(self)
+
+		self.__vote_mutiny.vote(self, user_session)
+
 	def process_give_moderator(self, user_session, message):
 		new_moderator = self.lookup_user(message["username"])
 		if new_moderator is None:
@@ -162,6 +221,7 @@ class RoomController:
 		self.broadcast(
 			{"command": "change_video"
 				, "video": self.serialize_video(video)})
+		self.event_video_changed.invoke(self, video)
 
 	def process_move_video(self, user_session, message):
 		video = self.lookup_video(int(message["item_id"]))
@@ -224,6 +284,11 @@ class RoomController:
 			else:
 				self.__current_video = None
 			self.__current_video_time = 0.0
+			self.event_video_changed.invoke(self, self.__current_video)
+
+	def process_vote_mutiny_cancel(self, user_session, message):
+		if self.__vote_mutiny is not None:
+			self.__vote_mutiny.moderator_cancel(self)
 
 	#### Broadcasting.
 	def broadcast(self, message):
@@ -236,6 +301,10 @@ class RoomController:
 				session.send(message)
 
 	#### Users.
+	@property
+	def active_users(self):
+		return self.__active_users
+
 	def next_guest_username(self):
 		def username_generator():
 			for i in itertools.count():
@@ -256,6 +325,8 @@ class RoomController:
 		self.__active_users.append(user_session)
 		self.__user_lookup[user_session.username] = user_session
 
+		self.event_user_connect.invoke(user_session)
+
 		# If this is the only user make them moderator.
 		if self.__moderator is None:
 			# Only update variable, send_initial_state will send the set_moderator message.
@@ -266,6 +337,8 @@ class RoomController:
 	def user_disconnect(self, user_session):
 		self.__active_users.remove(user_session)
 		del self.__user_lookup[user_session.username]
+
+		self.event_user_disconnect.invoke(user_session)
 
 		if len(self.__active_users) == 0:
 			del active_rooms[self.__room.room_id]
@@ -280,10 +353,10 @@ class RoomController:
 
 	def update_moderator(self, user_session):
 		self.__moderator = user_session
-
 		self.broadcast(
 			{"command": "set_moderator"
 				, "username": user_session.username})
+		self.event_moderator_changed.invoke(self, user_session)
 
 	def lookup_user(self, username):
 		for user in self.__active_users:
@@ -330,6 +403,23 @@ class RoomController:
 			, "start_time": video.start_time
 		}
 
+	def advance_video(self):
+		if self.__current_video is not None and len(self.__queue) > 1:
+			index = self.__queue.index(self.__current_video)
+
+			index += 1
+			if index == len(self.__queue):
+				index = 0
+
+			video = self.__queue[index]
+			self.broadcast(
+				{"command": "change_video"
+					, "video": self.serialize_video(video)})
+			self.__current_video = video
+			self.__current_video_time = 0.0
+
+			self.event_video_changed.invoke(self, video)
+
 	def on_video_resolved(self, video_info):
 		for video in self.__queue:
 			if video_info.url == video.url:
@@ -354,3 +444,18 @@ class RoomController:
 					, "video": serialized_video})
 			self.__current_video = video
 			self.__current_video_time = 0.0
+
+			self.event_video_changed.invoke(self, video)
+
+	#### Voting.
+	def vote_skip_remove(self):
+		assert(self.__vote_skip)
+
+		self.__vote_skip.unregister(self)
+		self.__vote_skip = None
+
+	def vote_mutiny_remove(self):
+		assert(self.__vote_mutiny)
+
+		self.__vote_mutiny.unregister(self)
+		self.__vote_mutiny = None

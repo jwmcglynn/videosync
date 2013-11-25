@@ -104,6 +104,15 @@ Add a video to the queue.
 |-----:|:--------:|:--------|
 | url  | `string` | URL identifying the video. |
 
+#### `vote_skip`
+
+Vote to skip the current video.
+
+#### `vote_mutiny`
+
+Vote to overthrow the current moderator.  The first person to initiate the vote becomes the new leader.
+
+
 ### Room moderator state
 
 #### `give_moderator`
@@ -151,6 +160,10 @@ Remove a video from the queue.
 | Name    | Type  | Details |
 |--------:|:-----:|:--------|
 | item_id | `int` | Video unique id. |
+
+#### `vote_mutiny_cancel`
+
+Cancel the current mutiny vote.
 
 Server-to-client messages
 -------------------------
@@ -253,6 +266,40 @@ Remove a video from the queue.
 | Name    | Type  | Details |
 |--------:|:-----:|:--------|
 | item_id | `int` | Video unique id. |
+
+#### `vote_skip_status`
+
+Reports status on the current skip vote.
+
+| Name    | Type  | Details |
+|--------:|:-----:|:--------|
+| votes | `int` | Current number of votes. |
+| votes_required | `int` | Number of votes required for vote to pass. |
+| has_voted | `bool` | Has the current user voted? |
+
+#### `vote_mutiny_status`
+
+Reports status on the current mutiny vote.
+
+| Name    | Type  | Details |
+|--------:|:-----:|:--------|
+| new_leader | `username_type` | First person to initiate the mutiny vote. |
+| time_remaining | `real` | Time remaining for the vote, in seconds. |
+| votes | `int` | Current number of votes. |
+| votes_required | `int` | Number of votes required for vote to pass. |
+| has_voted | `bool` | Has the current user voted? |
+
+#### `vote_skip_complete`
+
+Notifies that the skip vote is complete; either the video changed by the moderator or the vote passed which changed the video.
+
+#### `vote_mutiny_complete`
+
+Notifies that the mutiny vote is complete and has either passed or failed.
+
+| Name    | Type  | Details |
+|--------:|:-----:|:--------|
+| status | `string` | Either **passed** or **failed**. |
 
 #### `command_error`
 
