@@ -104,7 +104,7 @@ class RoomController:
 					self.process_add_video(user_session, message)
 				elif message["command"] == "vote_skip":
 					self.process_vote_skip(user_session, message)
-				elif message["command"] == "vote_mutiny":
+				elif message["command"] == "vote_mutiny" and user_session != self.__moderator:
 					self.process_vote_mutiny(user_session, message)
 				elif user_session == self.__moderator:
 					# Moderator-level commands.
@@ -325,7 +325,7 @@ class RoomController:
 		self.__active_users.append(user_session)
 		self.__user_lookup[user_session.username] = user_session
 
-		self.event_user_connect.invoke(user_session)
+		self.event_user_connect.invoke(self, user_session)
 
 		# If this is the only user make them moderator.
 		if self.__moderator is None:
@@ -338,7 +338,7 @@ class RoomController:
 		self.__active_users.remove(user_session)
 		del self.__user_lookup[user_session.username]
 
-		self.event_user_disconnect.invoke(user_session)
+		self.event_user_disconnect.invoke(self, user_session)
 
 		if len(self.__active_users) == 0:
 			del active_rooms[self.__room.room_id]

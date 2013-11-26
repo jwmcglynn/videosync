@@ -61,6 +61,8 @@ $.getScript("jquery.scrollintoview.js");
 	var MINIMUM_BOTTOM_HEIGHT = 200.0;
 	var MINIMUM_WIDTH = 320;
 	var error_timeout = null;
+	var mutiny_timer = null;
+	var mutiny_last_message = null;
 	
 	function html_encode(text) {
 		return $("<div/>").text(text).html();
@@ -77,7 +79,7 @@ $.getScript("jquery.scrollintoview.js");
 		}
 	}
 
-	function show_error(message) {
+	function show_error(message, warning) {
 		if (error_timeout) {
 			clearInterval(error_timeout);
 		}
@@ -86,6 +88,11 @@ $.getScript("jquery.scrollintoview.js");
 
 		var effect = function() {
 			$error.css({opacity: 1.0, height: "40px"});
+			if (warning) {
+				$error.addClass("warning");
+			} else {
+				$error.removeClass("warning");
+			}
 			$("#error_message").text(message);
 			$error.slideDown(200, function() {
 				error_timeout = setInterval(function() {
@@ -136,6 +143,14 @@ $.getScript("jquery.scrollintoview.js");
 		}
 	}
 
+	function update_mutiny_status() {
+		$("#vote_mutiny_status").text(
+			"({0} of {1}, {2}s remaining)".format(
+				mutiny_last_message.votes
+				, mutiny_last_message.votes_required
+				, Math.round(mutiny_last_message.time_remaining)));
+	}
+
 	function handle_error(error) {
 	
 	}
@@ -179,6 +194,50 @@ $.getScript("jquery.scrollintoview.js");
 				queue.move(message.item_id, message.index);
 			} else if (message.command == "remove_queue_video" && !controller.is_moderator) {
 				queue.remove(message.item_id);
+
+			// Voting.
+			} else if (message.command == "vote_skip_status") {
+				var status = $("#vote_skip_status");
+				status.text("({0} of {1})".format(message.votes, message.votes_required));
+				if (message.has_voted) {
+					$("#vote_skip").attr("disabled", "disabled");
+				}
+				status.show();
+
+			} else if (message.command == "vote_skip_complete") {
+				$("#vote_skip_status").hide();
+				$("#vote_skip").removeAttr("disabled");
+
+			} else if (message.command == "vote_mutiny_status") {
+				if (message.has_voted) {
+					$("#vote_mutiny").attr("disabled", "disabled");
+				}
+
+				if (controller.is_moderator && !mutiny_last_message) {
+					$("#vote_mutiny_cancel").show();
+					show_error("A mutiny has begun. Quick, smite them!", true);
+				}
+				
+				mutiny_last_message = message;
+				clearInterval(mutiny_timer)
+				mutiny_timer = setInterval(function() {
+					mutiny_last_message.time_remaining -= 1.0;
+					if (mutiny_last_message.time_remaining < 0.0) {
+						mutiny_last_message.time_remaining = 0.0;
+					}
+					update_mutiny_status();
+				}, 1000);
+				update_mutiny_status();
+				$("#vote_mutiny_status").show();
+
+
+			} else if (message.command == "vote_mutiny_complete") {
+				$("#vote_mutiny_status").hide();
+				$("#vote_mutiny_cancel").hide();
+				$("#vote_mutiny").removeAttr("disabled");
+				clearInterval(mutiny_timer);
+				mutiny_last_message = null;
+
 			} else if (message.command == "command_error") {
 				debug_print("Command error {0}: {1}".format(message.context, message.reason));
 				show_error(message.reason);
@@ -474,6 +533,12 @@ $.getScript("jquery.scrollintoview.js");
 
 			if (was_moderator != controller.is_moderator) {
 				queue.update_moderator();
+
+				if (controller.is_moderator) {
+					$("#vote_mutiny").hide();
+				} else {
+					$("#vote_mutiny").show();
+				}
 			}
 		},
 
@@ -1006,8 +1071,7 @@ $.getScript("jquery.scrollintoview.js");
 			var input = $("#video_url");
 			socket.send({command: "add_video", url: input.val()});
 			input.val("");
-		}
-		
+		};
 		$("#add_video").click(add_video);
 		$("#video_url").keydown(function(e) {
 			if (e.keyCode == 13) {
@@ -1021,8 +1085,7 @@ $.getScript("jquery.scrollintoview.js");
 			socket.send({command: "guest_username", username: input.val()});
 			input.val("");
 			$("#guest_name_change").hide();
-		}
-
+		};
 		$("#change_name").click(change_username);
 		$("#username").keydown(function(e) {
 			if (e.keyCode == 13) {
@@ -1030,6 +1093,21 @@ $.getScript("jquery.scrollintoview.js");
 				change_username();
 			}
 		});
+
+		var vote_skip = function() {
+			socket.send({command: "vote_skip"});
+		};
+		$("#vote_skip").click(vote_skip);
+
+		var vote_mutiny = function() {
+			socket.send({command: "vote_mutiny"});
+		};
+		$("#vote_mutiny").click(vote_mutiny);
+
+		var vote_mutiny_cancel = function() {
+			socket.send({command: "vote_mutiny_cancel"});
+		};
+		$("#vote_mutiny_cancel").click(vote_mutiny_cancel);
 	});
 
 	$(window).smartresize(function() {

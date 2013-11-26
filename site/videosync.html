@@ -1,20 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Testing</title>
+<title>VideoSync</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8">
 <link rel="stylesheet" type="text/css" href="videosync.css">
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
 <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.2/jquery-ui.min.js"></script>
 <script type="text/javascript" src="videosync.js"></script>
 </head>
 <body>
-<div id="error"><span class="error_tag">Error:</span> <span id="error_message"></span></div>
+<div id="error"><span class="error_tag">Error: </span><span id="error_message"></span></div>
 <div id="container">
 	<div id="wrapper">
 		<div id="content">
 			<div id="player_container"></div>
 			<div id="bottom">
-				<div id="guest_name_change">Username: <input id="username"><button id="change_name">Submit</button></div>
+				<div class="user_bar">
+					<div id="guest_name_change">Username: <input id="username"><button id="change_name">Submit</button></div>
+					<div class="voting">
+						<button id="vote_skip">▶▶ Skip</button><span class="vote_info" id="vote_skip_status"></span>
+						<button id="vote_mutiny">(╯°□°）╯︵ ɹoʇɐɹǝpoɯ</button>
+						<button id="vote_mutiny_cancel">Cancel Mutiny</button><span class="vote_info" id="vote_mutiny_status"></span>
+					</div>
+					</div>
 				<ul id="users"></ul>
 			</div>
 		</div>

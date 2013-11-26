@@ -65,16 +65,15 @@ class VoteSkipController(VoteController):
 		super(VoteSkipController, self).unregister(room_controller)
 
 	def on_video_changed(self, room_controller, video):
+		room_controller.vote_skip_remove()
 		room_controller.broadcast(
 			{"command": "vote_skip_complete"})
-		room_controller.vote_skip_remove()
 
 	def vote_complete(self, room_controller):
-		room_controller.advance_video()
-
+		room_controller.vote_skip_remove()
 		room_controller.broadcast(
 			{"command": "vote_skip_complete"})
-		room_controller.vote_skip_remove()
+		room_controller.advance_video()
 
 	def send_update(self, room_controller):
 		for session in room_controller.active_users:
@@ -86,10 +85,10 @@ class VoteSkipController(VoteController):
 					, "has_voted": has_voted})
 
 class VoteMutinyController(VoteController):
-	def __init__(self, room_controller, test_hook_timer=None):
+	def __init__(self, room_controller, time_limit=30.0, test_hook_timer=None):
 		super(VoteMutinyController, self).__init__(room_controller)
 		room_controller.event_moderator_changed.add_callback(self.on_moderator_changed)
-		self.__time_limit = 30.0
+		self.__time_limit = time_limit
 		
 		if test_hook_timer is None:
 			self.timer = reactor.callLater(self.__time_limit, self.on_time_limit, room_controller)
@@ -142,6 +141,8 @@ class VoteMutinyController(VoteController):
 			return 0
 
 	def on_time_limit(self, room_controller):
+		self.timer = None
+		room_controller.vote_mutiny_remove()
 		if len(self._votes) > 0 and len(self._votes) >= self._votes_required:
 			room_controller.update_moderator(self._votes[0])
 
@@ -152,15 +153,14 @@ class VoteMutinyController(VoteController):
 			room_controller.broadcast(
 				{"command": "vote_mutiny_complete"
 					, "status": "failed"})
-		room_controller.vote_mutiny_remove()
 
 	def moderator_cancel(self, room_controller):
 		# The moderator has canceled the vote.
 		if self.timer_cancel():
+			room_controller.vote_mutiny_remove()
 			room_controller.broadcast(
 				{"command": "vote_mutiny_complete"
 					, "status": "failed"})
-			room_controller.vote_mutiny_remove()
 
 	def vote_complete(self, room_controller):
 		# The vote will be successful, but we have to wait for the timeout.

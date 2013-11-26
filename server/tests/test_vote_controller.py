@@ -64,7 +64,7 @@ class MockRoomController(object):
 
 	def vote_mutiny_create(self):
 		self.timer = TestHookTimer(30.0)
-		self.vote_mutiny = VoteMutinyController(self, self.timer)
+		self.vote_mutiny = VoteMutinyController(self, test_hook_timer=self.timer)
 
 	def vote_mutiny_remove(self):
 		assert_not_equal(self.vote_mutiny, None)
