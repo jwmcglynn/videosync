@@ -198,12 +198,12 @@ h3.title img {
 	float: right;
 	width: 50%;
 	text-align: right;
-	margin-right: -5px;
 }
 
 #users {
 	margin: 3px;
 	padding: 0;
+	clear: right;
 }
 
 #users li {
