@@ -207,7 +207,7 @@ class RoomController:
 		self.broadcast_all_but_one(
 			user_session
 			, {"command": "video_state"
-				, "position": message["position"]
+				, "position": self.__current_video_time
 				, "state": message["state"]})
 
 	def process_select_video(self, user_session, message):

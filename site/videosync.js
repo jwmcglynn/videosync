@@ -56,7 +56,7 @@ $.getScript("jquery.scrollintoview.js");
 		ENDED: 4
 	}
 
-	var SYNC_THRESHOLD = 2.0;
+	var SYNC_THRESHOLD = 3.0;
 	var ASPECT_RATIO = 640.0 / 390.0;
 	var MINIMUM_BOTTOM_HEIGHT = 200.0;
 	var MINIMUM_WIDTH = 320;
@@ -217,7 +217,7 @@ $.getScript("jquery.scrollintoview.js");
 					$("#vote_mutiny_cancel").show();
 					show_error("A mutiny has begun. Quick, smite them!", true);
 				}
-				
+
 				mutiny_last_message = message;
 				clearInterval(mutiny_timer)
 				mutiny_timer = setInterval(function() {
@@ -297,8 +297,8 @@ $.getScript("jquery.scrollintoview.js");
 				function() {
 					if (controller.is_moderator) {
 						socket.send(
-								{command: "give_moderator"
-								, username: $entity.attr("data-username")});
+								{"command": "give_moderator"
+								, "username": $entity.attr("data-username")});
 					}
 				});
 
@@ -384,9 +384,9 @@ $.getScript("jquery.scrollintoview.js");
 				$queue.sortable({
 					update: function(e, ui) {
 						socket.send(
-							{command: "move_video"
-							, item_id: ui.item.attr("data-item_id")
-							, index: ui.item.index()});
+							{"command": "move_video"
+							, "item_id": ui.item.attr("data-item_id")
+							, "index": ui.item.index()});
 					}
 				});
 				$queue.disableSelection();
@@ -454,8 +454,8 @@ $.getScript("jquery.scrollintoview.js");
 				function() {
 					if (controller.is_moderator) {
 						socket.send(
-								{command: "select_video"
-								, item_id: video.item_id});
+								{"command": "select_video"
+								, "item_id": video.item_id});
 					}
 				});
 
@@ -468,8 +468,8 @@ $.getScript("jquery.scrollintoview.js");
 							}});
 					
 						socket.send(
-								{command: "remove_video"
-								, item_id: video.item_id});
+								{"command": "remove_video"
+								, "item_id": video.item_id});
 					}
 				});
 
@@ -672,19 +672,21 @@ $.getScript("jquery.scrollintoview.js");
 
 				if (controller.is_moderator) {
 					socket.send(
-						{command: "select_video"
-						, item_id: queue.next_video_id()});
+						{"command": "select_video"
+						, "item_id": queue.next_video_id()});
 				}
 			} else if (event.data == YT.PlayerState.UNSTARTED) {
 				state = youtube.is_autoplay ? videoStates.PLAYING : videoStates.PAUSED;
 			}
 
+			debug_print("Event = " + event.data);
+
 			if (state != youtube.last_video_state
 					|| time != youtube.last_playback_position) {
 				if (controller.is_moderator) {
 					socket.send(
-						{command: "update_video_state"
-						, position: time
+						{"command": "update_video_state"
+						, "position": time
 						, "state": (state == videoStates.PLAYING ? "playing" : "paused")});
 					youtube.last_playback_position = time;
 				}
@@ -699,6 +701,7 @@ $.getScript("jquery.scrollintoview.js");
 		load: function(video, autoplay) {
 			youtube.is_autoplay = autoplay;
 			youtube.start_time = video.start_time;
+			youtube.last_playback_position = video.start_time;
 
 			$container = $("#player_container");
 			$container.append($("<div>", {id: "player"}));
@@ -720,8 +723,8 @@ $.getScript("jquery.scrollintoview.js");
 				var time = youtube.get_current_time();
 				if (controller.is_moderator && youtube.last_playback_position != time) {
 					socket.send(
-						{command: "update_video_state"
-						, position: time
+						{"command": "update_video_state"
+						, "position": time
 						, "state": (youtube.last_video_state == videoStates.PLAYING ? "playing" : "paused")});
 					youtube.last_playback_position = time;
 				}
@@ -741,12 +744,16 @@ $.getScript("jquery.scrollintoview.js");
 		},
 		
 		switch_video: function(video, autoplay) {
+			youtube.is_autoplay = autoplay;
+			youtube.last_playback_position = video.start_time;
+
 			var options = {
 				videoId: query_variable(video.url, "v")
 				, startSeconds: video.start_time};
-			youtube.player.loadVideoById(options);
-			if (!autoplay) {
-				youtube.player.pauseVideo();
+			if (autoplay) {
+				youtube.player.loadVideoById(options);
+			} else {
+				youtube.player.cueVideoById(options);
 			}
 		},
 		
@@ -839,9 +846,9 @@ $.getScript("jquery.scrollintoview.js");
 			if (videoStates.PLAYING != vimeo.last_video_state) {
 				if (controller.is_moderator) {
 					socket.send(
-						{command: "update_video_state"
-						, position: vimeo.current_time
-						, state: "playing"});
+						{"command": "update_video_state"
+						, "position": vimeo.current_time
+						, "state": "playing"});
 					vimeo.last_playback_position = vimeo.current_time;
 				}
 				vimeo.last_video_state = videoStates.PLAYING;
@@ -857,9 +864,9 @@ $.getScript("jquery.scrollintoview.js");
 				}
 				if (controller.is_moderator) {
 					socket.send(
-						{command: "update_video_state"
-						, position: vimeo.current_time
-						, state: "paused"});
+						{"command": "update_video_state"
+						, "position": vimeo.current_time
+						, "state": "paused"});
 					vimeo.last_playback_position = vimeo.current_time;
 				}
 				vimeo.last_video_state = videoStates.PAUSED;
@@ -869,8 +876,8 @@ $.getScript("jquery.scrollintoview.js");
 		on_finish: function() {
 			if (controller.is_moderator) {
 				socket.send(
-					{command: "select_video"
-					, item_id: queue.next_video_id()});
+					{"command": "select_video"
+					, "item_id": queue.next_video_id()});
 			}
 		},
 
@@ -879,9 +886,9 @@ $.getScript("jquery.scrollintoview.js");
 			if(new_time != vimeo.current_time) {
 				if (controller.is_moderator && Math.abs(new_time - vimeo.last_playback_position) > 0.5) {
 					socket.send(
-						{command: "update_video_state"
-						, position: new_time
-						, state: (vimeo.last_video_state == videoStates.PLAYING ? "playing" : "paused")});
+						{"command": "update_video_state"
+						, "position": new_time
+						, "state": (vimeo.last_video_state == videoStates.PLAYING ? "playing" : "paused")});
 					vimeo.last_playback_position = new_time;
 				}
 				vimeo.current_time = new_time;
@@ -1069,7 +1076,7 @@ $.getScript("jquery.scrollintoview.js");
 		// Hook up UI.
 		var add_video = function() {
 			var input = $("#video_url");
-			socket.send({command: "add_video", url: input.val()});
+			socket.send({"command": "add_video", "url": input.val()});
 			input.val("");
 		};
 		$("#add_video").click(add_video);
@@ -1082,7 +1089,7 @@ $.getScript("jquery.scrollintoview.js");
 
 		var change_username = function() {
 			var input = $("#username");
-			socket.send({command: "guest_username", username: input.val()});
+			socket.send({"command": "guest_username", "username": input.val()});
 			input.val("");
 			$("#guest_name_change").hide();
 		};
@@ -1095,17 +1102,17 @@ $.getScript("jquery.scrollintoview.js");
 		});
 
 		var vote_skip = function() {
-			socket.send({command: "vote_skip"});
+			socket.send({"command": "vote_skip"});
 		};
 		$("#vote_skip").click(vote_skip);
 
 		var vote_mutiny = function() {
-			socket.send({command: "vote_mutiny"});
+			socket.send({"command": "vote_mutiny"});
 		};
 		$("#vote_mutiny").click(vote_mutiny);
 
 		var vote_mutiny_cancel = function() {
-			socket.send({command: "vote_mutiny_cancel"});
+			socket.send({"command": "vote_mutiny_cancel"});
 		};
 		$("#vote_mutiny_cancel").click(vote_mutiny_cancel);
 	});
