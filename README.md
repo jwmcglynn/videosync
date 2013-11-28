@@ -1,6 +1,8 @@
 VideoSync
 =========
 
+![Screenshot](http://i.imgur.com/yBRf0KL.png)
+
 Setup
 -----
 
