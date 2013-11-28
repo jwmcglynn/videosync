@@ -150,10 +150,6 @@ $.getScript("jquery.scrollintoview.js");
 				, mutiny_last_message.votes_required
 				, Math.round(mutiny_last_message.time_remaining)));
 	}
-
-	function handle_error(error) {
-	
-	}
 	
 	function handle_message(messageStr) {
 		debug_print("Got message: " + messageStr);
@@ -194,6 +190,10 @@ $.getScript("jquery.scrollintoview.js");
 				queue.move(message.item_id, message.index);
 			} else if (message.command == "remove_queue_video" && !controller.is_moderator) {
 				queue.remove(message.item_id);
+
+			// Chat.
+			} else if (message.command == "chat_message") {
+				chat.append(message.username, message.message);
 
 			// Voting.
 			} else if (message.command == "vote_skip_status") {
@@ -349,6 +349,54 @@ $.getScript("jquery.scrollintoview.js");
 			if (users.moderator) {
 				users.moderator.addClass("moderator");
 			}
+		}
+	};
+
+	var chat = {
+		last_username: null,
+		$last_username_entity: null,
+
+		append: function(username, message) {
+			var $chat = $("#chat");
+			var isAtBottom = ($chat.prop("scrollHeight") - $chat.scrollTop() < $chat.outerHeight());
+
+			var $entity = $("<li class='new'>");
+			if (chat.message_contains_username(message)) {
+				$entity.addClass("mention");
+			}
+
+			var $username = $("<span class='username'>");
+			if (chat.last_username == username) {
+				chat.$last_username_entity.addClass("continuation");
+			} else {
+				$username.addClass("username");
+				users.format_username($username, username);
+			}
+			if (controller.username == username) {
+				$username.addClass("self");
+			}
+			chat.last_username = username;
+			chat.$last_username_entity = $username;
+			$entity.append($username);
+
+			$message = $("<span class='message'>");
+			$message.text(message.replace(/\w{10}/g, "$&\xAD"));
+			$entity.append($message);
+
+			$chat.append($entity);
+			$entity.switchClass("new", "", 500);
+			if (isAtBottom) {
+				$chat.scrollTop($chat.prop("scrollHeight"));
+			}
+		},
+
+		message_contains_username: function(message) {
+			var username = controller.username;
+			if (username.length > 2 && username[0] == "*") {
+				username = username.substring(1, username.length - 1);
+			}
+
+			return (message.toLowerCase().indexOf(username.toLowerCase()) !== -1);
 		}
 	};
 
@@ -590,6 +638,7 @@ $.getScript("jquery.scrollintoview.js");
 
 		resize_video: function() {
 			var $bottom = $("#bottom");
+			var $player = $("#player_container");
 
 			var width = $(window).width() - $("#sidebar").outerWidth();
 			if (width <= MINIMUM_WIDTH) {
@@ -603,14 +652,17 @@ $.getScript("jquery.scrollintoview.js");
 			}
 
 			$bottom.height($(window).height() - height);
-			$("#player_container").height(height);
-
-			if (controller.current_player) {
-				controller.current_player.resize(width, height);
-			}
+			$("#content").height(height);
+			$player.height(height);
 
 			// Resize sidebar.
 			$("#queue_container").height($(window).height() - $("#controls_container").outerHeight());
+
+			// Resize users and chat box.
+			$("#users_container").height($bottom.height() - $("#video_controls_bar").outerHeight());
+			$("#chat").outerHeight($("#users_container").height() - $("#chat_bar").outerHeight());
+			// TODO: Find a better way of doing this.
+			$("#chat_message").outerWidth($("#chat_bar").width() - $("#chat_bar label").outerWidth() - $("#chat_bar button").outerWidth() - 25);
 		}
 	};
 	
@@ -706,15 +758,15 @@ $.getScript("jquery.scrollintoview.js");
 			$container = $("#player_container");
 			$container.append($("<div>", {id: "player"}));
 			youtube.player = new YT.Player("player", {
-				height: $container.height(),
-				width: $container.height() * ASPECT_RATIO,
-				videoId: query_variable(video.url, "v"),
-				playerVars: {rel: 0},
-				events: {
-					"onReady": youtube.on_player_ready,
-					"onPlaybackQualityChange": youtube.on_playback_quality_change,
-					"onStateChange": youtube.on_player_state_change,
-					"onError": youtube.on_player_error
+				height: "100%"
+				, width: "100%"
+				, videoId: query_variable(video.url, "v")
+				, playerVars: {rel: 0}
+				, events: {
+					"onReady": youtube.on_player_ready
+					, "onPlaybackQualityChange": youtube.on_playback_quality_change
+					, "onStateChange": youtube.on_player_state_change
+					, "onError": youtube.on_player_error
 				}
 			});
 
@@ -736,11 +788,6 @@ $.getScript("jquery.scrollintoview.js");
 			youtube.player = null;
 			youtube.player_ready = false;
 			$("#player_container").html("");
-		},
-
-		resize: function(width, height) {
-			var video = $("#player_container iframe");
-			video.width(width).height(height);
 		},
 		
 		switch_video: function(video, autoplay) {
@@ -924,8 +971,8 @@ $.getScript("jquery.scrollintoview.js");
 			$iframe = $("<iframe>", {
 				id: "player"
 				, src: url
-				, height: $container.height()
-				, width: $container.height() * ASPECT_RATIO
+				, height: "100%"
+				, width: "100%"
 				, frameborder: 0
 				, webkitAllowFullScreen: ""
 				, mozallowfullscreen: ""
@@ -941,11 +988,6 @@ $.getScript("jquery.scrollintoview.js");
 			vimeo.player = null;
 			vimeo.player_ready = false;
 			$("#player_container").html("");
-		},
-
-		resize: function(width, height) {
-			var video = $("#player_container iframe");
-			video.width(width).height(height);
 		},
 		
 		switch_video: function(video, autoplay) {
@@ -1101,6 +1143,7 @@ $.getScript("jquery.scrollintoview.js");
 			}
 		});
 
+		// Voting.
 		var vote_skip = function() {
 			socket.send({"command": "vote_skip"});
 		};
@@ -1115,6 +1158,26 @@ $.getScript("jquery.scrollintoview.js");
 			socket.send({"command": "vote_mutiny_cancel"});
 		};
 		$("#vote_mutiny_cancel").click(vote_mutiny_cancel);
+
+		// Chat.
+		var chat_message = function() {
+			var input = $("#chat_message");
+			var message = $.trim(input.val());
+			if (message != "")
+			{
+				socket.send({"command": "chat_message", "message": input.val()});
+				input.val("");
+			}
+
+			input.focus();
+		};
+		$("#chat_send").click(chat_message);
+		$("#chat_message").keydown(function(e) {
+			if (e.keyCode == 13) {
+				e.preventDefault();
+				chat_message();
+			}
+		});
 	});
 
 	$(window).smartresize(function() {

@@ -16,7 +16,9 @@ body {
 #error {
 	display: none;
 	position: absolute;
-	width: 100%;
+    width: -moz-calc(100% - 250px);
+    width: -webkit-calc(100% - 250px);
+    width: calc(100% - 250px);
 	right: 250px;
 	height: 40px;
 	background-color: #833;
@@ -38,14 +40,11 @@ body {
 	height: 100%;
 }
 
-#wrapper {
-	float: left;
-	width: 100%;
-	margin-left: -250px;
-}
-
 #content {
-	margin-left: 250px;
+	float: left;
+    width: -moz-calc(100% - 250px);
+    width: -webkit-calc(100% - 250px);
+    width: calc(100% - 250px);
 }
 
 #sidebar {
@@ -90,6 +89,9 @@ h3.title img {
 	text-align: center;
 	margin: 0 auto;
 	height: 390px;
+    width: -moz-calc(100% - 250px);
+    width: -webkit-calc(100% - 250px);
+    width: calc(100% - 250px);
 }
 
 #controls_container {
@@ -97,7 +99,6 @@ h3.title img {
 }
 
 #bottom {
-	overflow: auto;
 	height: 300px;
 }
 
@@ -179,31 +180,32 @@ h3.title img {
 	white-space: nowrap;
 }
 
-.user_bar {
-	padding: 5px 0 5px 5px;
+#video_controls_bar {
 	vertical-align: middle;
+	text-align: right;
+	padding: 5px 0px 5px 5px;
 }
 
 #guest_name_change {
 	display: none;
 	float: left;
-	width: 50%;
 }
 
 #guest_name_change input {
-	width: 100px;
+	width: 90px;
 }
 
-.voting {
-	float: right;
-	width: 50%;
-	text-align: right;
+#users_container {
+	clear: both;
+	float: left;
+	height: 100%;
+	width: 250px;
+	overflow: auto;
 }
 
 #users {
-	margin: 3px;
 	padding: 0;
-	clear: right;
+	margin: 0;
 }
 
 #users li {
@@ -231,7 +233,7 @@ h3.title img {
 }
 
 #users li.hover {
-	background-color: #222;
+	background-color: #333;
 }
 
 #users li .moderator_tag {
@@ -253,7 +255,7 @@ h3.title img {
 }
 
 #users li.self {
-	background-color: #222;
+	background-color: #333;
 	font-weight: bold;
 }
 
@@ -264,6 +266,84 @@ h3.title img {
 
 #users li.moderator .moderator_controls {
 	display: none !important;
+}
+
+#chat_container {
+	float: right;
+	clear: right;
+    width: -moz-calc(100% - 250px);
+    width: -webkit-calc(100% - 250px);
+    width: calc(100% - 250px);
+}
+
+#chat {
+	height: 100%;
+	border: 2px #333 solid;
+	-moz-box-sizing: border-box;
+	-webkit-box-sizing: border-box;
+	box-sizing: border-box;
+	overflow: auto;
+	margin: 0;
+	padding: 0;
+}
+
+#chat li {
+	font-size: 14px;
+	background-color: #000;
+	margin: 0;
+	list-style: none;
+	display: table;
+	width: 100%;
+}
+
+#chat li span {
+	display: table-cell;
+	padding: 4px;
+	margin-bottom: 2px;
+}
+
+#chat li.new {
+	background-color: rgba(255, 255, 255, 0.2);
+}
+
+#chat .username {
+	background-color: rgba(255, 255, 255, 0.1333);
+	margin-right: 2px;
+	border-right: 2px transparent solid;
+	min-width: 120px;
+	width: 120px;
+	text-align: right;
+	vertical-align: top;
+}
+
+#chat .continuation {
+	margin-bottom: 0;
+	padding-bottom: 2px;
+}
+
+#chat .guest {
+	font-style: italic;
+}
+
+#chat .self {
+	background-color: rgba(255, 255, 255, 0.2);
+	font-weight: bold;
+}
+
+#chat .mention {
+	background-color: rgba(85, 255, 85, 0.1);
+}
+
+#chat .message {
+	word-wrap: break-word;
+}
+
+#chat_bar {
+	padding: 5px 0 5px 5px;
+	-moz-box-sizing: border-box;
+	-webkit-box-sizing: border-box;
+	box-sizing: border-box;
+	white-space: nowrap;
 }
 
 .vote_bar {

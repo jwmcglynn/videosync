@@ -530,3 +530,59 @@ class TestRoomController():
 		user1.wait_message_count(1)
 		assert_equal([{"command": "change_video", "video": k_video1}], user1.messages)
 		user1.messages = []
+
+	def test_chat(self):
+		user1 = MockGuestUserSession("TestGuestUser")
+		user2 = MockUserSession("RealUser1")
+		user3 = MockUserSession("RealUser2")
+		users = [user1, user2, user3]
+
+		## Validate username decoration.
+		self.room_controller.user_connect(user1)
+		self.room_controller.user_connect(user2)
+		self.room_controller.user_connect(user3)
+		user1.messages = [] # Ignore initial state messages.
+		user2.messages = []
+		user3.messages = []
+
+
+		def validate_message(sender, content, expected_content=None):
+			if expected_content is None:
+				expected_content = content
+
+			self.room_controller.process_message(
+				sender
+				, {"command": "chat_message"
+					, "message": content})
+			assert_equal(
+				[{"command": "chat_message"
+					, "username": sender.username
+					, "message": expected_content}]
+				, user1.messages)
+			assert_equal(
+				[{"command": "chat_message"
+					, "username": sender.username
+					, "message": expected_content}]
+				, user2.messages)
+			user1.messages = []
+			user2.messages = []
+
+		validate_message(user1, "test")
+		validate_message(user2, "<b>html</b>")
+		validate_message(user1, "\"test'")
+
+		# Validate that whitespace is stripped.
+		validate_message(user1, "test\n", "test")
+		validate_message(user1, "  test   ", "test")
+		validate_message(user1, "\ttest\r\n", "test")
+
+		# Validate that sending an empty message fails.
+		self.room_controller.process_message(
+			user1
+			, {"command": "chat_message"
+				, "message": ""})
+		assert_equal(
+			[{"command": "command_error"
+				, "context": "chat_message"
+				, "reason": "Message cannot be empty."}]
+			, user1.messages)

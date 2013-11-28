@@ -106,6 +106,8 @@ class RoomController:
 					self.process_vote_skip(user_session, message)
 				elif message["command"] == "vote_mutiny" and user_session != self.__moderator:
 					self.process_vote_mutiny(user_session, message)
+				elif message["command"] == "chat_message":
+					self.process_chat_message(user_session, message)
 				elif user_session == self.__moderator:
 					# Moderator-level commands.
 					if message["command"] == "give_moderator":
@@ -192,6 +194,16 @@ class RoomController:
 			self.__vote_mutiny = vote_controller.VoteMutinyController(self)
 
 		self.__vote_mutiny.vote(self, user_session)
+
+	def process_chat_message(self, user_session, message):
+		content = message["message"].strip()
+		if len(content) == 0:
+			raise CommandError("Message cannot be empty.")
+
+		self.broadcast(
+			{"command": "chat_message"
+				, "username": user_session.username
+				, "message": content})
 
 	def process_give_moderator(self, user_session, message):
 		new_moderator = self.lookup_user(message["username"])

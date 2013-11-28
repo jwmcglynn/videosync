@@ -112,6 +112,11 @@ Vote to skip the current video.
 
 Vote to overthrow the current moderator.  The first person to initiate the vote becomes the new leader.
 
+#### `chat_message`
+
+| Name      | Type            | Details |
+|----------:|:---------------:|:--------|
+| message   | `string`        | Message content. |
 
 ### Room moderator state
 
@@ -300,6 +305,13 @@ Notifies that the mutiny vote is complete and has either passed or failed.
 | Name    | Type  | Details |
 |--------:|:-----:|:--------|
 | status | `string` | Either **passed** or **failed**. |
+
+#### `chat_message`
+
+| Name      | Type            | Details |
+|----------:|:---------------:|:--------|
+| username  | `username_type` | Username of the author. |
+| message   | `string`        | Message content. |
 
 #### `command_error`
 
