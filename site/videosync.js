@@ -731,14 +731,12 @@ $.getScript("jquery.scrollintoview.js");
 				state = youtube.is_autoplay ? videoStates.PLAYING : videoStates.PAUSED;
 			}
 
-			debug_print("Event = " + event.data);
-
 			if (state != youtube.last_video_state
 					|| time != youtube.last_playback_position) {
 				if (controller.is_moderator) {
 					socket.send(
 						{"command": "update_video_state"
-						, "position": time
+						, "position": time || 0.0
 						, "state": (state == videoStates.PLAYING ? "playing" : "paused")});
 					youtube.last_playback_position = time;
 				}
@@ -776,7 +774,7 @@ $.getScript("jquery.scrollintoview.js");
 				if (controller.is_moderator && youtube.last_playback_position != time) {
 					socket.send(
 						{"command": "update_video_state"
-						, "position": time
+						, "position": time || 0.0
 						, "state": (youtube.last_video_state == videoStates.PLAYING ? "playing" : "paused")});
 					youtube.last_playback_position = time;
 				}
@@ -894,7 +892,7 @@ $.getScript("jquery.scrollintoview.js");
 				if (controller.is_moderator) {
 					socket.send(
 						{"command": "update_video_state"
-						, "position": vimeo.current_time
+						, "position": vimeo.current_time || 0.0
 						, "state": "playing"});
 					vimeo.last_playback_position = vimeo.current_time;
 				}
@@ -912,7 +910,7 @@ $.getScript("jquery.scrollintoview.js");
 				if (controller.is_moderator) {
 					socket.send(
 						{"command": "update_video_state"
-						, "position": vimeo.current_time
+						, "position": vimeo.current_time || 0.0
 						, "state": "paused"});
 					vimeo.last_playback_position = vimeo.current_time;
 				}
@@ -934,7 +932,7 @@ $.getScript("jquery.scrollintoview.js");
 				if (controller.is_moderator && Math.abs(new_time - vimeo.last_playback_position) > 0.5) {
 					socket.send(
 						{"command": "update_video_state"
-						, "position": new_time
+						, "position": new_time || 0.0
 						, "state": (vimeo.last_video_state == videoStates.PLAYING ? "playing" : "paused")});
 					vimeo.last_playback_position = new_time;
 				}
