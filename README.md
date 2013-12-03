@@ -47,6 +47,8 @@ Start Server for Development
 
 `python videosync.py --webserver`
 
+This starts a webserver on port 8080.  To access the server open a web browser and navigate to [http://localhost:8080/videosync.html](http://localhost:8080/videosync.html).
+
 
 Start Server for Production
 ---------------------------
