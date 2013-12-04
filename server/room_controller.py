@@ -59,6 +59,9 @@ class CommandError(Exception):
 	def __init__(self, message):
 		self.message = message
 
+	def __str__(self):
+		return self.message
+
 class RoomController:
 	def __init__(self, room_id):
 		self.__room = room_model.Room(room_id)

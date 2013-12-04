@@ -8,9 +8,20 @@ class UrlError(Exception):
 	def __init__(self, message):
 		self.message = message
 
+	def __str__(self):
+		return self.message
+
 class VideoError(Exception):
-	def __init__(self, message):
+	def __init__(self, message, nested_exception=None):
 		self.message = message
+		self.nested_exception = nested_exception
+
+	def __str__(self):
+		if self.nested_exception is None:
+			return self.message
+		else:
+			return "%s, nested exception %s: %s" % (self.message, repr(self.nested_exception), self.nested_exception)
+
 
 class VideoInfo:
 	def __init__(self, service, url, uid, title, duration, start_time):

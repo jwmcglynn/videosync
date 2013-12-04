@@ -19,12 +19,17 @@ config.read("videosync.cfg")
 __api_key = config.get("Youtube", "api_key")
 __youtube = build("youtube", "v3", developerKey=__api_key)
 __agent = Agent(reactor, WebClientContextFactory())
+test_hook_exception = None
 
 class YoutubeResponseHandler(ResponseHandler):
 	def __init__(self, video_info):
 		self.video_info = video_info
 
 	def connectionLost(self, reason):
+		if test_hook_exception is not None:
+			self.finished.errback(VideoError("Test hook error", test_hook_exception))
+			return
+
 		try:
 			response = json.loads(self.body)
 			video_data = response["items"][0]

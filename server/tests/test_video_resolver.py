@@ -1,7 +1,8 @@
 from nose.twistedtools import threaded_reactor, deferred
 
 from video_resolver import resolve
-from services.common import VideoInfo
+from services.common import VideoInfo, VideoError
+import services.youtube
 
 from nose.tools import *
 
@@ -35,9 +36,16 @@ k_video4 = {"service": u"vimeo"
 			, "duration": 811
 			, "start_time": 0}
 
+class TestHookError(Exception):
+	pass
+
 class TestVideoResolver:
 	def setup(self):
 		threaded_reactor()
+		services.youtube.test_hook_exception = None
+
+	def teardown(self):
+		services.youtube.test_hook_exception = None
 
 	def convert_video_info(self, video_info):
 		return {
@@ -55,10 +63,23 @@ class TestVideoResolver:
 			assert_equal(k_video1, self.convert_video_info(video_info))
 
 		d = resolve(k_video1["url"])
-
 		d.addCallback(check_video)
-
 		return d
+
+	@raises(VideoError)
+	@deferred(timeout=5.0)
+	def test_youtube_error(self):
+		"""
+		Test whether errors are properly propagated out of the youtube video resolver.
+		"""
+		def check_video(video_info):
+			assert_true(False, "Test succeeded when it was expected to fail.")
+
+		services.youtube.test_hook_exception = TestHookError()
+		d = resolve(k_video1["url"])
+		d.addCallback(check_video)
+		return d
+
 
 	@deferred(timeout=5.0)
 	def test_youtube_start_time(self):
@@ -66,9 +87,7 @@ class TestVideoResolver:
 			assert_equal(k_video2, self.convert_video_info(video_info))
 
 		d = resolve(k_video2["url"])
-
 		d.addCallback(check_video)
-
 		return d
 
 	@deferred(timeout=5.0)
@@ -77,9 +96,7 @@ class TestVideoResolver:
 			assert_equal(k_video3, self.convert_video_info(video_info))
 
 		d = resolve(k_url3)
-
 		d.addCallback(check_video)
-
 		return d
 
 	@deferred(timeout=5.0)
@@ -88,7 +105,5 @@ class TestVideoResolver:
 			assert_equal(k_video4, self.convert_video_info(video_info))
 
 		d = resolve(k_video4["url"])
-
 		d.addCallback(check_video)
-
 		return d
