@@ -2,7 +2,6 @@ from vote_controller import VoteSkipController, VoteMutinyController
 from room_controller import EventSource
 
 from nose.tools import *
-from nose_extra_tools import *
 
 class MockUserSession(object):
 	def __init__(self, username):
@@ -52,7 +51,7 @@ class MockRoomController(object):
 		self.video_advanced = True
 
 	def update_moderator(self, user_session):
-		assert_is_none(self.changed_moderator)
+		assert_true(self.changed_moderator is None)
 		self.changed_moderator = user_session
 
 	## Voting.
@@ -113,7 +112,7 @@ class TestVoteController():
 		assert_equal(
 			[{"command": "vote_skip_complete"}]
 			, room.messages)
-		assert_is_none(room.vote_skip)
+		assert_true(room.vote_skip is None)
 
 	def test_vote_skip_pass(self):
 		# Test a basic pass vote.
@@ -139,7 +138,7 @@ class TestVoteController():
 		assert_equal(
 			[{"command": "vote_skip_complete"}]
 			, room.messages)
-		assert_is_none(room.vote_skip)
+		assert_true(room.vote_skip is None)
 
 	def test_vote_skip_user_join(self):
 		# Confirm that a user joining sends an update and refreshes the votes required.
@@ -197,7 +196,7 @@ class TestVoteController():
 			[{"command": "vote_skip_complete"}]
 			, room.messages)
 		assert_false(room.video_advanced) # Vote did not change the video, something else did.
-		assert_is_none(room.vote_skip)
+		assert_true(room.vote_skip is None)
 
 
 	def test_vote_skip_win_by_disconnect(self):
@@ -235,14 +234,14 @@ class TestVoteController():
 		assert_equal(
 			[{"command": "vote_skip_complete"}]
 			, room.messages)
-		assert_is_none(room.vote_skip)
+		assert_true(room.vote_skip is None)
 
 	#### Mutiny tests.
 	def mutiny_finish(self, room):
 		# Set the mutiny timer to complete and evaluate the vote.
 		room.timer.time_remaining = 0.0
 		room.vote_mutiny.on_time_limit(room)
-		assert_is_none(room.vote_mutiny)
+		assert_true(room.vote_mutiny is None)
 		assert_false(room.timer.canceled)
 
 	def test_vote_mutiny_pass(self):
@@ -289,12 +288,12 @@ class TestVoteController():
 			, votes_required=2)
 
 		room.vote_mutiny.moderator_cancel(room)
-		assert_is_none(room.changed_moderator)
+		assert_true(room.changed_moderator is None)
 		assert_equal(
 			[{"command": "vote_mutiny_complete"
 				, "status": "failed"}]
 			, room.messages)
-		assert_is_none(room.vote_mutiny)
+		assert_true(room.vote_mutiny is None)
 		assert_true(room.timer.canceled)
 
 	def test_vote_mutiny_cancel_by_leadership_change(self):
@@ -315,12 +314,12 @@ class TestVoteController():
 			, votes_required=2)
 
 		room.event_moderator_changed.invoke(room, user2)
-		assert_is_none(room.changed_moderator)
+		assert_true(room.changed_moderator is None)
 		assert_equal(
 			[{"command": "vote_mutiny_complete"
 				, "status": "failed"}]
 			, room.messages)
-		assert_is_none(room.vote_mutiny)
+		assert_true(room.vote_mutiny is None)
 		assert_true(room.timer.canceled)
 
 	def test_vote_mutiny_timeout(self):
@@ -341,7 +340,7 @@ class TestVoteController():
 			, votes_required=2)
 		self.mutiny_finish(room)
 
-		assert_is_none(room.changed_moderator)
+		assert_true(room.changed_moderator is None)
 		assert_equal(
 			[{"command": "vote_mutiny_complete"
 				, "status": "failed"}]
