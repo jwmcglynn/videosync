@@ -8,11 +8,7 @@ Setup
 
 ### Install packages (all platforms)
 
-`pip install autobahn`    
-`pip install passlib`    
-`pip install nose`    
-`pip install google-api-python-client`    
-`pip install isodate`
+`pip install -r requirements.txt`    
 
 ### Install additional packages for Windows
 

@@ -2,6 +2,7 @@ from vote_controller import VoteSkipController, VoteMutinyController
 from room_controller import EventSource
 
 from nose.tools import *
+from nose_extra_tools import *
 
 class MockUserSession(object):
 	def __init__(self, username):
