@@ -5,9 +5,10 @@ import re
 
 from apiclient.discovery import build
 from twisted.internet import reactor
-from twisted.web.client import Agent
+from twisted.web.client import Agent, ContentDecoderAgent, GzipDecoder
 from twisted.web.http_headers import Headers
 from isodate import parse_duration, ISO8601Error
+from os import environ
 
 from services.common import WebClientContextFactory, ResponseHandler, VideoInfo, UrlError, VideoError
 
@@ -18,7 +19,7 @@ config.read("videosync.cfg")
 
 __api_key = config.get("Youtube", "api_key")
 __youtube = build("youtube", "v3", developerKey=__api_key)
-__agent = Agent(reactor, WebClientContextFactory())
+__agent = ContentDecoderAgent(Agent(reactor, WebClientContextFactory()), [("gzip", GzipDecoder)])
 test_hook_exception = None
 
 class YoutubeResponseHandler(ResponseHandler):
@@ -26,6 +27,11 @@ class YoutubeResponseHandler(ResponseHandler):
 		self.video_info = video_info
 
 	def connectionLost(self, reason):
+		if environ.get("INSIDE_NOSETEST"):
+			print "connectionLost: %d %s" % (self.response.code, self.response.phrase)
+			print "Headers: %s" % repr(self.response.headers)
+			print self.body
+
 		if test_hook_exception is not None:
 			self.finished.errback(VideoError("Test hook error", test_hook_exception))
 			return
@@ -45,8 +51,8 @@ class YoutubeResponseHandler(ResponseHandler):
 				self.video_info.duration = parse_duration(video_data["contentDetails"]["duration"]).seconds
 
 				self.finished.callback(self.video_info)
-		except (ValueError, KeyError, IndexError):
-			self.finished.errback(VideoError("Unable to find youtube video info."))
+		except (ValueError, KeyError, IndexError) as e:
+			self.finished.errback(VideoError("Unable to find youtube video info.", e))
 
 def resolve(parts):
 	start_time_str = None
@@ -89,7 +95,7 @@ def resolve(parts):
 	headers = convert_headers(request.headers)
 	d = __agent.request(
 		"GET"
-		, request.uri.encode('latin-1')
+		, request.uri.encode("latin-1")
 		, headers
 		, None)
 
@@ -102,10 +108,13 @@ def resolve(parts):
 	return d
 
 def convert_headers(headers):
+	if environ.get("INSIDE_NOSETEST"):
+		print "Outgoing headers: %s" % repr(headers)
+
 	new_headers = {}
 	for k in headers.keys():
 		if k == "accept-encoding":
-			new_headers[k] = headers[k].split(', ')
+			new_headers[k] = headers[k].split(", ")
 		else:
 			new_headers[k] = [headers[k]]
 	return Headers(new_headers)

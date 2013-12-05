@@ -20,7 +20,7 @@ class VideoError(Exception):
 		if self.nested_exception is None:
 			return self.message
 		else:
-			return "%s, nested exception %s: %s" % (self.message, repr(self.nested_exception), self.nested_exception)
+			return "%s, nested exception %s: %s" % (self.message, self.nested_exception.__class__.__name__, self.nested_exception)
 
 
 class VideoInfo:
@@ -45,8 +45,7 @@ class ResponseHandler(Protocol):
 		return self.finished
 
 	def error_callback(self, error):
-		print type(error.value), error
-		return VideoError("Unable to find video info.")
+		return VideoError("Unable to find video info.", error)
 
 	def dataReceived(self, bytes):
 		self.body += bytes
