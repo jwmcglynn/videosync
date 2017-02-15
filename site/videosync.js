@@ -558,22 +558,22 @@ $.getScript("jquery.scrollintoview.js");
 			}
 		},
 
-    removeAllPrevious: function() {
-      var currentIndex = queue.current_index();
+		removeAllPrevious: function () {
+			var currentIndex = queue.current_index();
 
-      var children = $("#queue").children();
-      
-      // goes through the queue and adds the list of 
-      for (var i = 0; i < children.length; i++) {
-        var videoId = children[i].attr("data-item_id");
+			var children = $("#queue").children();
 
-        if (videoId === currentIndex)
-          break;
-        else
-          queue.remove(videoId);
-      }
-      
-    }
+			// goes through the queue and adds the list of 
+			for (var i = 0; i < children.length; i++) {
+				var videoId = children[i].attr("data-item_id");
+
+				if (videoId === currentIndex) {
+					break;
+				} else {
+					queue.remove(videoId);
+				}
+			}
+		}
 
 	};
 
