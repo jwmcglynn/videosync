@@ -556,7 +556,25 @@ $.getScript("jquery.scrollintoview.js");
 			} else {
 				debug_print("Error: Could not find video to move.");
 			}
+		},
+
+		removeAllPrevious: function () {
+			var currentIndex = queue.current_index();
+
+			var children = $("#queue").children();
+
+			// goes through the queue and adds the list of 
+			for (var i = 0; i < children.length; i++) {
+				var videoId = children[i].attr("data-item_id");
+
+				if (videoId === currentIndex) {
+					break;
+				} else {
+					queue.remove(videoId);
+				}
+			}
 		}
+
 	};
 
 	var controller = {
@@ -584,8 +602,10 @@ $.getScript("jquery.scrollintoview.js");
 
 				if (controller.is_moderator) {
 					$("#vote_mutiny").hide();
+          $("#remove_all_previous").show();
 				} else {
 					$("#vote_mutiny").show();
+          $("#remove_all_previous").hide();
 				}
 			}
 		},
@@ -1157,6 +1177,10 @@ $.getScript("jquery.scrollintoview.js");
 		};
 		$("#vote_mutiny_cancel").click(vote_mutiny_cancel);
 
+    $("#remove_all_previous").click(function() {
+      queue.removeAllPrevious();
+    });
+    
 		// Chat.
 		var chat_message = function() {
 			var input = $("#chat_message");
