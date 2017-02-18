@@ -565,7 +565,7 @@ $.getScript("jquery.scrollintoview.js");
 
 			// goes through the queue and adds the list of 
 			for (var i = 0; i < children.length; i++) {
-				var videoId = children[i].attr("data-item_id");
+				var videoId = $(children[i]).attr("data-item_id");
 
 				if (videoId === currentIndex) {
 					break;
