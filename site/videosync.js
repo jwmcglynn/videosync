@@ -565,17 +565,21 @@ $.getScript("jquery.scrollintoview.js");
 
 			// goes through the queue and adds the list of 
 			for (var i = 0; i < children.length; i++) {
-				var videoId = $(children[i]).attr("data-item_id");
+				var $entity = $(children[i]);
+				var videoId = $entity.attr("data-item_id");
 
-				if (parseInt(videoId) === parseInt(currentIndex)) {
-					break;
+				if ($entity.hasClass("highlighted")) {
+					return;
 				}
 
-				queue.remove(videoId);
-				socket.send({
-					"command": "remove_video", 
-					"item_id": videoId
-				});
+				if (controller.is_moderator) {
+					queue.remove(videoId);
+
+					socket.send({
+						"command": "remove_video", 
+						"item_id": videoId
+					});
+				}
 			}
 		}
 
