@@ -565,12 +565,20 @@ $.getScript("jquery.scrollintoview.js");
 
 			// goes through the queue and adds the list of 
 			for (var i = 0; i < children.length; i++) {
-				var videoId = $(children[i]).attr("data-item_id");
+				var $entity = $(children[i]);
+				var videoId = $entity.attr("data-item_id");
 
-				if (videoId === currentIndex) {
-					break;
-				} else {
+				if ($entity.hasClass("highlighted")) {
+					return;
+				}
+
+				if (controller.is_moderator) {
 					queue.remove(videoId);
+
+					socket.send({
+						"command": "remove_video", 
+						"item_id": videoId
+					});
 				}
 			}
 		}
@@ -597,15 +605,19 @@ $.getScript("jquery.scrollintoview.js");
 			var was_moderator = controller.is_moderator;
 			controller.is_moderator = value;
 
+			if (!controller.is_moderator) {
+				$("#remove_all_previous").hide();
+			}
+
 			if (was_moderator != controller.is_moderator) {
 				queue.update_moderator();
 
 				if (controller.is_moderator) {
 					$("#vote_mutiny").hide();
-          $("#remove_all_previous").show();
+          			$("#remove_all_previous").show();
 				} else {
 					$("#vote_mutiny").show();
-          $("#remove_all_previous").hide();
+          			$("#remove_all_previous").hide();
 				}
 			}
 		},
