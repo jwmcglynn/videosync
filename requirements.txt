@@ -1,5 +1,5 @@
 # Earlier versions of these APIs are untested.
-autobahn == 0.5.14
+autobahn == 20.12.3
 passlib == 1.6.1
 google-api-python-client == 1.1
 isodate == 0.4.9
